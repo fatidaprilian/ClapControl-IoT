@@ -1,0 +1,73 @@
+{
+  "project": {
+    "name": "ClapControl IoT",
+    "context": "ESP32 local web dashboard for lamp relay control and KY-037 sound monitoring",
+    "runtime": "PlatformIO Arduino on ESP32 DevKit V1",
+    "constraints": [
+      "Use WiFi.h and WebServer.h only",
+      "Embed HTML, CSS, and JavaScript directly in src/main.cpp",
+      "Auto-refresh status every 500 ms"
+    ]
+  },
+  "motionPaletteDecision": {
+    "motionDensitySource": "Embedded device dashboard with high-frequency sensor refresh",
+    "requiredInteractionStates": ["default", "hover", "focus-visible", "active", "success", "error"],
+    "paletteAutopilotRisk": "Avoid generic dark dashboard by deriving colors from electrical status roles",
+    "threeDimensionalOrCanvasUse": "Unnecessary for relay control and ESP32-hosted UI"
+  },
+  "conceptualAnchor": {
+    "agentResearchMode": "local-brief-synthesis",
+    "sourceDomain": "electrical instrumentation",
+    "specificReferencePoint": "portable digital multimeter front panel",
+    "rationale": "The product needs immediate relay status, live numeric sensor feedback, and precise threshold tuning.",
+    "signatureMotion": "Analog meter fill eases toward the live sound value while relay status glow changes immediately.",
+    "typographicDecision": "Large numeric sensor value contrasts with compact uppercase labels for instrument-like scanning.",
+    "derivedTokenLogic": {
+      "colorDerivationSource": "Green, red, and yellow electrical signal roles from the multimeter-style anchor",
+      "spacingDerivationSource": "Grouped control zones similar to meter display, mode, and input areas",
+      "typographyDerivationSource": "Numeric display prominence with compact metadata labels",
+      "motionDerivationSource": "Fast instrument feedback with restrained smoothing"
+    },
+    "visualRiskBudget": "Low: no external assets and no memory-heavy canvas",
+    "motionRiskBudget": "Low: CSS transitions only",
+    "cohesionChecks": [
+      "Status is visible without relying on color alone",
+      "Threshold control stays near the sensor readout",
+      "Mobile layout promotes immediate lamp actions"
+    ]
+  },
+  "derivedTokenLogic": {
+    "anchorReference": "portable digital multimeter front panel",
+    "colorDerivationSource": "Electrical signal semantics for on, off, warning, and panel contrast",
+    "spacingDerivationSource": "Instrument zones separated by card panels and compact gaps",
+    "typographyDerivationSource": "Large display digits paired with concise control labels",
+    "motionDerivationSource": "Immediate relay feedback and eased sensor meter response",
+    "validationRule": "Every visual token must support quick relay control or sensor readability."
+  },
+  "libraryResearchStatus": "not-needed",
+  "libraryDecisions": [
+    {
+      "name": "Native CSS and browser fetch API",
+      "purpose": "Serve a dependency-free dashboard from ESP32 flash",
+      "risk": "Browser support is broad for local network use",
+      "fallbackIfUnavailable": "Basic HTML controls still call the JSON endpoints"
+    }
+  ],
+  "responsiveMutation": {
+    "mobile": "Stack hero, controls, threshold, then metadata; full-width control buttons",
+    "tablet": "Single-column or narrow two-zone layout depending on viewport width",
+    "desktop": "Two-column instrument layout with status overview beside control panel"
+  },
+  "accessibility": {
+    "hardFloor": "WCAG 2.2 AA intent",
+    "requirements": [
+      "Visible focus states",
+      "Large touch targets",
+      "Status text alongside color indicators",
+      "Reduced-motion handling"
+    ]
+  },
+  "repoEvidence": {
+    "designEvidenceSummary": "Existing repo is a PlatformIO ESP32 scaffold with placeholder main.cpp and no docs directory."
+  }
+}
