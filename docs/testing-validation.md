@@ -20,9 +20,9 @@ Build dinyatakan valid jika PlatformIO menampilkan `SUCCESS`.
 ## Dashboard Check
 
 - Status lampu tampil sebagai ON atau OFF.
-- Tombol ON menyalakan relay.
-- Tombol OFF mematikan relay.
-- Tombol TOGGLE membalik status relay.
+- Tombol ON menyalakan LED 5V.
+- Tombol OFF mematikan LED 5V.
+- Tombol TOGGLE membalik status LED.
 - Clap mode bisa berubah ON/OFF.
 - Nilai analog berubah ketika ada suara.
 - Slider threshold mengubah nilai threshold.
@@ -48,12 +48,19 @@ GET http://<ip-esp32>/api/threshold?value=2200
 4. Tepuk dua kali sangat cepat dan pastikan cooldown mencegah trigger ganda yang tidak diinginkan.
 5. Sesuaikan threshold jika ruangan terlalu bising atau sensor kurang sensitif.
 
-## Relay Safety Check
+## 5V LED Output Check
 
-- Saat ESP32 boot, relay harus berada pada kondisi OFF.
-- Perintah ON harus membuat GPIO26 `LOW`.
-- Perintah OFF harus membuat GPIO26 `HIGH`.
-- Jika perilaku terbalik, cek apakah modul relay yang dipakai benar-benar aktif LOW.
+- Saat ESP32 boot, LED harus OFF.
+- Perintah ON harus membuat GPIO26 `HIGH`.
+- Perintah OFF harus membuat GPIO26 `LOW`.
+- LED tidak boleh tersambung langsung ke GPIO ESP32.
+- Resistor 1k ohm harus berada antara GPIO26 dan base transistor.
+- LED satuan harus memakai resistor pembatas arus, misalnya 220 ohm.
+- Emitter transistor harus ke GND bersama.
+- Collector transistor harus ke sisi negatif LED/load.
+- ESP32 tidak boleh reset berulang saat LED ON.
+- Transistor tidak boleh panas berlebihan.
+- Untuk LED strip yang lebih besar, validasi total arus USB dan pertimbangkan logic-level N-MOSFET.
 
 ## Regression Checklist
 
@@ -62,3 +69,4 @@ GET http://<ip-esp32>/api/threshold?value=2200
 - Threshold menolak nilai di luar `0..4095`.
 - UI tetap auto-refresh setiap 500 ms.
 - DO sensor tetap tampil di `/api/status`.
+- Output lampu tetap active HIGH untuk transistor switch.

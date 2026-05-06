@@ -9,11 +9,11 @@ const char *WIFI_PASSWORD = "GANTI_PASSWORD_WIFI";
 // Hardware pin map for ESP32 DevKit V1.
 const uint8_t SOUND_ANALOG_PIN = 34;  // KY-037 AO -> GPIO34, input only ADC pin.
 const uint8_t SOUND_DIGITAL_PIN = 27; // KY-037 DO -> GPIO27.
-const uint8_t RELAY_PIN = 26;         // Relay IN -> GPIO26.
+const uint8_t LAMP_SWITCH_PIN = 26;   // GPIO26 -> 1k resistor -> NPN transistor base.
 
-// Relay module is active LOW: LOW turns lamp on, HIGH turns lamp off.
-const uint8_t RELAY_ON_LEVEL = LOW;
-const uint8_t RELAY_OFF_LEVEL = HIGH;
+// NPN low-side LED switch is active HIGH: HIGH turns the 5V LED load on.
+const uint8_t LAMP_ON_LEVEL = HIGH;
+const uint8_t LAMP_OFF_LEVEL = LOW;
 
 // Clap detection guardrails.
 const uint16_t DEFAULT_SOUND_THRESHOLD = 2200;
@@ -367,7 +367,7 @@ const char DASHBOARD_HTML[] PROGMEM = R"rawliteral(
         <div>
           <p class="eyebrow">ESP32 DevKit V1 + KY-037</p>
           <h1>ClapControl IoT</h1>
-          <p class="subcopy">Monitor suara realtime, atur threshold, dan kendalikan relay lampu AC lewat jaringan lokal.</p>
+          <p class="subcopy">Monitor suara realtime, atur threshold, dan kendalikan LED 5V lewat jaringan lokal.</p>
         </div>
         <div class="status-row">
           <div class="pill" aria-live="polite">
@@ -505,7 +505,7 @@ const char DASHBOARD_HTML[] PROGMEM = R"rawliteral(
 
 void applyLampOutput()
 {
-  digitalWrite(RELAY_PIN, lampOn ? RELAY_ON_LEVEL : RELAY_OFF_LEVEL);
+  digitalWrite(LAMP_SWITCH_PIN, lampOn ? LAMP_ON_LEVEL : LAMP_OFF_LEVEL);
 }
 
 void setLamp(bool nextLampState)
@@ -713,7 +713,7 @@ void handleClapDetection()
   unsigned long now = millis();
 
   // Clap trigger uses the web-configured analog threshold. The DO pin is still
-  // monitored in /api/status, but not used for relay decisions because KY-037
+  // monitored in /api/status, but not used for lamp decisions because KY-037
   // modules can differ in digital output polarity.
   if (!soundPeak)
   {
@@ -745,7 +745,7 @@ void setup()
 
   pinMode(SOUND_ANALOG_PIN, INPUT);
   pinMode(SOUND_DIGITAL_PIN, INPUT);
-  pinMode(RELAY_PIN, OUTPUT);
+  pinMode(LAMP_SWITCH_PIN, OUTPUT);
 
   analogReadResolution(12);
   setLamp(false);

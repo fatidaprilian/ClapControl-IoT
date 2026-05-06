@@ -31,7 +31,7 @@ Mengambil status lengkap perangkat.
 
 | Field | Tipe | Keterangan |
 | --- | --- | --- |
-| `lampOn` | boolean | `true` jika lampu ON |
+| `lampOn` | boolean | `true` jika LED/lampu 5V ON |
 | `clapMode` | boolean | `true` jika clap mode aktif |
 | `analog` | number | Nilai ADC KY-037 AO, rentang 0 sampai 4095 |
 | `digital` | number | Nilai KY-037 DO, `0` atau `1` |
@@ -42,7 +42,7 @@ Mengambil status lengkap perangkat.
 
 ## `GET /api/on`
 
-Menyalakan lampu.
+Menyalakan LED/lampu 5V.
 
 ### Response 200
 
@@ -50,7 +50,7 @@ Response sama seperti `/api/status`.
 
 ## `GET /api/off`
 
-Mematikan lampu.
+Mematikan LED/lampu 5V.
 
 ### Response 200
 
@@ -58,7 +58,7 @@ Response sama seperti `/api/status`.
 
 ## `GET /api/toggle`
 
-Mengubah status lampu dari ON ke OFF atau OFF ke ON.
+Mengubah status LED/lampu 5V dari ON ke OFF atau OFF ke ON.
 
 ### Response 200
 

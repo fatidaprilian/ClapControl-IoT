@@ -30,30 +30,18 @@ Langkah diagnosis:
 2. Buka `http://<ip-esp32>` tanpa HTTPS.
 3. Refresh browser.
 
-## Relay Tidak Menyala
+## LED 5V Tidak Sesuai Status Dashboard
 
-Kemungkinan penyebab:
-
-- Relay membutuhkan supply 5V yang lebih stabil.
-- Ground ESP32 dan relay tidak common.
-- Kabel IN relay tidak ke GPIO26.
-- Modul relay yang digunakan bukan aktif LOW.
-
-Langkah diagnosis:
-
-1. Coba endpoint `/api/on` dan `/api/off`.
-2. Dengarkan bunyi klik relay.
-3. Ukur GPIO26 jika punya multimeter.
-4. Cek label IN, VCC, dan GND pada modul relay.
-
-## Lampu Terbalik ON/OFF
-
-Jika lampu ON saat status dashboard OFF, kemungkinan relay module aktif HIGH atau wiring AC memakai terminal NC.
+Jika LED ON saat dashboard OFF, kemungkinan mapping firmware salah atau transistor/wiring tertukar.
 
 Solusi:
 
-- Pindahkan wiring AC dari NC ke NO.
-- Jika modul relay aktif HIGH, ubah mapping relay di firmware dengan hati-hati.
+1. Pastikan firmware memakai `HIGH` untuk ON dan `LOW` untuk OFF.
+2. Pastikan GPIO26 melewati resistor 1k ohm ke base transistor.
+3. Pastikan emitter ke GND bersama.
+4. Pastikan collector ke sisi negatif LED/load.
+5. Pastikan LED satuan memakai resistor seri.
+6. Jika LED strip menarik arus besar, ganti transistor NPN kecil dengan logic-level N-MOSFET.
 
 ## Clap Tidak Terdeteksi
 
@@ -77,12 +65,12 @@ Kemungkinan penyebab:
 
 - Threshold terlalu rendah.
 - Lingkungan terlalu bising.
-- Sensor menangkap getaran relay atau meja.
+- Sensor menangkap getaran meja atau lingkungan sekitar.
 
 Solusi:
 
 1. Naikkan threshold.
-2. Jauhkan sensor dari relay atau sumber getaran.
+2. Jauhkan sensor dari sumber getaran.
 3. Pastikan clap mode dimatikan ketika tidak dibutuhkan.
 
 ## Upload Gagal

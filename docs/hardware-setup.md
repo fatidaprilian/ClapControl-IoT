@@ -1,13 +1,27 @@
 # Hardware Setup
 
+## Status Hardware
+
+Implementasi utama sekarang memakai sistem 5V DC hemat daya:
+
+```text
+ESP32 DevKit V1 + KY-037 + LED 5V + transistor switch + satu sumber USB 5V
+```
+
+Relay, fitting, steker, kabel AC, dan lampu bohlam AC tidak dipakai. Jangan sambungkan tegangan PLN/AC ke rakitan ini.
+
 ## Komponen
 
 - ESP32 DevKit V1 Type-C CP2102.
 - Sensor suara KY-037.
-- Relay 1 channel 5V, aktif LOW.
-- Lampu AC, fitting, dan steker.
+- LED 5V satuan atau LED strip 5V pendek.
+- Transistor NPN 2N2222 atau S8050.
+- Resistor 1k ohm untuk base transistor.
+- Resistor 220 ohm untuk LED satuan tanpa resistor bawaan.
 - Kabel jumper.
-- Power supply yang sesuai untuk ESP32 dan relay.
+- Sumber daya USB 5V dari komputer, adaptor USB, atau power bank.
+
+Untuk LED strip yang lebih panjang atau arusnya lebih besar, gunakan logic-level N-MOSFET sebagai pengganti NPN kecil.
 
 ## Wiring ESP32 ke KY-037
 
@@ -18,33 +32,74 @@
 | AO | GPIO34 | Input analog ADC, rentang baca 0 sampai 4095 |
 | DO | GPIO27 | Input digital untuk monitoring |
 
-## Wiring ESP32 ke Relay
+## Wiring LED 5V Dengan Transistor NPN
 
-| Relay | ESP32 / Supply | Catatan |
+GPIO26 tidak memberi daya langsung ke LED. GPIO26 hanya memberi sinyal ke base transistor melalui resistor 1k ohm.
+
+| Bagian | Koneksi | Catatan |
 | --- | --- | --- |
-| IN | GPIO26 | Relay aktif LOW |
-| GND | GND ESP32 dan supply relay | Ground harus common |
-| VCC | 5V relay supply | Gunakan supply yang cukup untuk coil relay |
+| ESP32 5V/VIN | Rail 5V breadboard | Sumber daya LED kecil dan sensor |
+| ESP32 GND | Rail GND breadboard | Ground bersama |
+| GPIO26 | Resistor 1k ohm ke base NPN | Sinyal active HIGH |
+| Base NPN | Dari resistor 1k ohm | Jangan langsung ke GPIO tanpa resistor |
+| Emitter NPN | GND rail | Low-side switch |
+| Collector NPN | Sisi negatif LED/load | Arus LED mengalir lewat transistor |
+| Sisi positif LED | 5V melalui resistor 220 ohm | Untuk LED satuan |
 
-## Wiring Relay ke Lampu AC
+Rangkaian LED satuan:
 
-Umumnya wiring AC memakai terminal relay:
+```text
+5V rail
+  |
+  |-- resistor 220 ohm -- anode LED
+                            cathode LED -- collector NPN
+                                           emitter NPN -- GND rail
 
-| Terminal Relay | Koneksi |
+GPIO26 -- resistor 1k ohm -- base NPN
+```
+
+Rangkaian LED strip 5V pendek:
+
+```text
+5V rail -- LED strip +5V
+LED strip negative/GND -- collector NPN
+emitter NPN -- GND rail
+
+GPIO26 -- resistor 1k ohm -- base NPN
+```
+
+Banyak LED strip 5V sudah punya resistor atau rangkaian pembatas arus. Jangan menambahkan resistor 220 ohm seri untuk seluruh strip kecuali spesifikasi strip memang memerlukannya.
+
+## Common Ground Wajib
+
+Semua ground harus tersambung:
+
+```text
+ESP32 GND = KY-037 GND = emitter transistor = USB 5V ground
+```
+
+Tanpa common ground, sinyal GPIO26 tidak punya referensi yang benar untuk menyalakan transistor.
+
+## Logika Output Firmware
+
+Transistor NPN low-side memakai active HIGH:
+
+| Status LED | GPIO26 |
 | --- | --- |
-| COM | Jalur live dari steker |
-| NO | Jalur live ke lampu |
-| NC | Tidak digunakan untuk mode default OFF |
+| ON | `HIGH` |
+| OFF | `LOW` |
 
-Dengan konfigurasi COM ke NO, lampu default mati saat relay tidak aktif.
+Saat ESP32 boot, firmware memanggil `setLamp(false)` agar LED berada pada kondisi OFF.
 
-## Peringatan Listrik AC
+## Batas Arus USB
 
-- Matikan sumber listrik sebelum wiring.
-- Jangan sentuh sisi AC ketika perangkat tersambung listrik.
-- Gunakan enclosure dan isolasi yang baik.
-- Pisahkan kabel AC dari kabel sinyal ESP32.
-- Jika tidak yakin, minta bantuan teknisi listrik.
+Satu kabel USB membuat rakitan lebih ringkas, tetapi arus tetap terbatas.
+
+- Single LED dengan resistor 220 ohm aman untuk pengujian awal.
+- Beberapa LED kecil masih masuk akal jika total arus rendah.
+- LED strip panjang tidak disarankan lewat breadboard kecil.
+- Jika ESP32 reset saat LED menyala, beban LED terlalu besar atau supply USB drop.
+- Jika transistor panas, matikan rangkaian dan kurangi beban.
 
 ## Kalibrasi KY-037
 
@@ -58,6 +113,8 @@ Dengan konfigurasi COM ke NO, lampu default mati saat relay tidak aktif.
 ## Catatan Pin ESP32
 
 GPIO34 adalah input-only, cocok untuk AO sensor. Pin ini tidak bisa dipakai sebagai output.
+
+GPIO26 dipakai sebagai output kontrol transistor. Jangan sambungkan LED langsung ke GPIO26.
 
 ## Upload Firmware
 

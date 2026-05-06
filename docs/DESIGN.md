@@ -14,7 +14,7 @@ The conceptual anchor is a portable electrical test meter: strong numeric readou
 
 ## Color, Typography, Spacing, and Density Decisions
 
-Dark background reduces glare during lamp testing. Green indicates relay-ready/on behavior, red is reserved for OFF or risk actions, and yellow highlights clap mode and threshold attention.
+Dark background reduces glare during lamp testing. Green indicates LED/on behavior, red is reserved for OFF or risk actions, and yellow highlights clap mode and threshold attention.
 
 ## Token Architecture and Alias Strategy
 

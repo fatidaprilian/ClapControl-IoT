@@ -1,6 +1,8 @@
 # ClapControl IoT
 
-PlatformIO firmware for an ESP32 DevKit V1 that controls an AC lamp through a 5V relay, reads a KY-037 sound sensor, and exposes a responsive web dashboard over local WiFi.
+PlatformIO firmware for an ESP32 DevKit V1 that controls a 5V LED output through an active HIGH transistor switch, reads a KY-037 sound sensor, and exposes a responsive web dashboard over local WiFi.
+
+The project now targets a USB-only low-voltage build: ESP32, KY-037, LED 5V, transistor switch, and one 5V USB power source. The old AC relay direction is kept only as historical context in the docs.
 
 ## Documentation
 
@@ -11,6 +13,7 @@ Start from [docs/README.md](docs/README.md) for the full project documentation:
 - Flow overview
 - API contract
 - Hardware setup
+- 5V LED migration guide
 - Operation guide
 - Testing and troubleshooting
 
@@ -18,8 +21,10 @@ Start from [docs/README.md](docs/README.md) for the full project documentation:
 
 - ESP32 DevKit V1 Type-C CP2102
 - KY-037 sound sensor
-- 1 channel 5V relay module, active LOW
-- AC lamp through fitting and plug
+- 5V LED or short 5V LED strip
+- NPN transistor, such as 2N2222 or S8050, or a logic-level N-MOSFET for larger LED loads
+- 1k ohm base resistor
+- LED current-limiting resistor for bare LEDs, such as 220 ohm
 
 ## Wiring
 
@@ -27,10 +32,13 @@ Start from [docs/README.md](docs/README.md) for the full project documentation:
 | --- | --- |
 | KY-037 AO | GPIO34 |
 | KY-037 DO | GPIO27 |
-| Relay IN | GPIO26 |
-| Relay VCC/GND | External 5V/GND as required by the relay module |
+| Lamp output control | GPIO26 |
+| NPN base | GPIO26 through 1k ohm resistor |
+| NPN emitter | Common GND |
+| NPN collector | LED negative side |
+| LED positive side | 5V rail through current limiting as required |
 
-Make sure AC wiring is isolated and handled safely. The ESP32 side must never be exposed to mains voltage.
+Do not connect AC mains to this build. Follow [docs/5v-led-migration.md](docs/5v-led-migration.md) for the complete wiring and validation guide.
 
 ## Setup
 

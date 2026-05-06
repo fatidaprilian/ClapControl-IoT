@@ -5,8 +5,8 @@
 ```mermaid
 flowchart TD
   A[Power on ESP32] --> B[Init Serial 115200]
-  B --> C[Set pin mode sensor and relay]
-  C --> D[Set relay OFF]
+  B --> C[Set pin mode sensor and lamp switch]
+  C --> D[Set lamp output OFF]
   D --> E[Connect to WiFi]
   E --> F[Register HTTP routes]
   F --> G[Start WebServer on port 80]
@@ -26,7 +26,7 @@ flowchart TD
   G -- No --> H[Do nothing]
   G -- Yes --> I{Cooldown passed?}
   I -- No --> H
-  I -- Yes --> J[Toggle relay lamp]
+  I -- Yes --> J[Toggle 5V LED output]
   J --> K[Record last clap time and disarm peak]
   F --> L[Delay 5 ms]
   H --> L
@@ -54,10 +54,9 @@ sequenceDiagram
   participant User
   participant Browser
   participant ESP32
-  participant Relay
   User->>Browser: Click ON/OFF/TOGGLE
   Browser->>ESP32: GET /api/on or /api/off or /api/toggle
-  ESP32->>Relay: Write GPIO26 with active LOW mapping
+  ESP32->>ESP32: Write GPIO26 with active HIGH mapping
   ESP32-->>Browser: JSON status
   Browser->>User: Update lamp indicator
 ```
@@ -82,3 +81,7 @@ sequenceDiagram
 3. Jika nilai analog mencapai threshold dan clap mode aktif, cek cooldown.
 4. Jika cooldown sudah lewat, toggle lampu.
 5. Setelah trigger, sistem disarm sampai nilai analog turun lagi.
+
+## Output Polarity Note
+
+LED 5V dengan transistor NPN memakai aktif HIGH: ON menulis `HIGH`, OFF menulis `LOW`. Flow dashboard, API, threshold, dan clap detection tetap sama; mapping output fisik GPIO26 mengikuti transistor switch.

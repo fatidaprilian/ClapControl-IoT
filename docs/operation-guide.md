@@ -62,8 +62,10 @@ WiFi connected. Dashboard: http://<ip-esp32>
 | Web server port | `80` |
 | Threshold awal | `2200` |
 | Cooldown clap | `650 ms` |
-| Relay ON | `LOW` |
-| Relay OFF | `HIGH` |
+| LED 5V ON | `HIGH` |
+| LED 5V OFF | `LOW` |
+
+Sebelum menyalakan hardware, baca [5V LED Migration Guide](5v-led-migration.md). Pastikan LED tidak mengambil daya langsung dari GPIO ESP32.
 
 ## Setelah Perubahan Kode
 

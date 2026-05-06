@@ -2,7 +2,7 @@
 
 ## Ringkasan
 
-Firmware berjalan sebagai aplikasi monolitik kecil di ESP32. ESP32 membaca sensor KY-037, mengelola state lampu dan clap mode, lalu melayani dashboard web serta endpoint JSON melalui HTTP lokal.
+Firmware berjalan sebagai aplikasi monolitik kecil di ESP32. ESP32 membaca sensor KY-037, mengelola state LED 5V dan clap mode, lalu melayani dashboard web serta endpoint JSON melalui HTTP lokal.
 
 ## Struktur Project
 
@@ -18,6 +18,7 @@ Firmware berjalan sebagai aplikasi monolitik kecil di ESP32. ESP32 membaca senso
 |   |-- flow-overview.md
 |   |-- api-contract.md
 |   |-- hardware-setup.md
+|   |-- 5v-led-migration.md
 |   |-- operation-guide.md
 |   |-- testing-validation.md
 |   `-- troubleshooting.md
@@ -28,8 +29,8 @@ Firmware berjalan sebagai aplikasi monolitik kecil di ESP32. ESP32 membaca senso
 
 | Area | Tanggung Jawab |
 | --- | --- |
-| Konfigurasi WiFi dan pin | Menentukan kredensial lokal, pin sensor, pin relay, threshold awal, dan cooldown |
-| State lampu | Menyimpan status ON/OFF dan menerapkan level relay aktif LOW |
+| Konfigurasi WiFi dan pin | Menentukan kredensial lokal, pin sensor, pin output lampu, threshold awal, dan cooldown |
+| State lampu | Menyimpan status ON/OFF dan menerapkan level output sesuai hardware yang dipakai |
 | Web dashboard | Menyajikan HTML, CSS, dan JavaScript dari flash ESP32 |
 | API HTTP | Menyediakan endpoint status, kontrol lampu, clap mode, dan threshold |
 | Sensor reading | Membaca nilai AO dan DO KY-037 |
@@ -47,16 +48,16 @@ Firmware berjalan sebagai aplikasi monolitik kecil di ESP32. ESP32 membaca senso
 | `lastClapAt` | `unsigned long` | Waktu trigger tepuk terakhir |
 | `lastWifiReconnectAttempt` | `unsigned long` | Waktu percobaan reconnect terakhir |
 
-## Relay Active LOW
+## Output LED 5V
 
-Relay module aktif LOW, sehingga mapping output dibuat eksplisit:
+Implementasi firmware memakai transistor switch aktif HIGH. Mapping output dibuat eksplisit agar fungsi kontrol lampu tidak perlu mengingat detail polaritas hardware di banyak tempat.
 
-| Lampu | Level GPIO26 |
+| State LED | Level GPIO26 |
 | --- | --- |
-| ON | `LOW` |
-| OFF | `HIGH` |
+| ON | `HIGH` |
+| OFF | `LOW` |
 
-Dengan mapping ini, fungsi kontrol lampu tidak perlu mengingat detail polaritas relay di banyak tempat.
+GPIO26 masuk ke resistor 1k ohm lalu base transistor NPN. Daya LED tetap berasal dari rail 5V, bukan dari GPIO ESP32.
 
 ## Sensor Strategy
 
