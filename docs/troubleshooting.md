@@ -1,89 +1,90 @@
 # Troubleshooting
 
-## ESP32 Tidak Terkoneksi WiFi
+## ESP32 Upload Fails
 
-Kemungkinan penyebab:
+Possible causes:
 
-- SSID atau password salah.
-- WiFi hanya 5 GHz.
-- Sinyal terlalu lemah.
-- Router memblokir perangkat baru.
+- Serial Monitor is open.
+- Wrong COM port is selected.
+- USB cable is charge-only or unstable.
+- ESP32 did not enter bootloader mode.
 
-Langkah diagnosis:
+Diagnosis:
 
-1. Cek Serial Monitor `115200`.
-2. Pastikan SSID adalah jaringan 2.4 GHz.
-3. Dekatkan ESP32 ke router.
-4. Reset ESP32 setelah mengubah kredensial.
+1. Close Serial Monitor.
+2. Reconnect ESP32.
+3. Run `pio device list`.
+4. Run `pio run --target upload`.
+5. If upload stalls, hold `BOOT` when upload starts, then release after writing begins.
 
-## Dashboard Tidak Bisa Dibuka
+## ESP32 Does Not Boot
 
-Kemungkinan penyebab:
+GPIO2 is a boot-strapping pin on many ESP32 boards. A relay module can affect boot if it pulls the pin to the wrong level.
 
-- Komputer atau HP tidak satu jaringan dengan ESP32.
-- IP ESP32 berubah setelah reconnect.
-- Browser memakai cache lama.
+Solutions:
 
-Langkah diagnosis:
+1. Disconnect relay IN and reset the ESP32.
+2. If boot works without relay IN, move relay IN to GPIO18 and update `RELAY_PIN`.
+3. Keep relay VCC/GND on the rails and only move the signal wire.
 
-1. Lihat IP terbaru di Serial Monitor.
-2. Buka `http://<ip-esp32>` tanpa HTTPS.
-3. Refresh browser.
+## Blynk Device Stays Offline
 
-## LED 5V Tidak Sesuai Status Dashboard
+Possible causes:
 
-Jika LED ON saat dashboard OFF, kemungkinan mapping firmware salah atau transistor/wiring tertukar.
+- Wrong Blynk auth token.
+- Wrong template ID or template name.
+- Wrong WiFi SSID or password.
+- WiFi is 5 GHz only.
+- ESP32 is too far from router.
 
-Solusi:
+Solutions:
 
-1. Pastikan firmware memakai `HIGH` untuk ON dan `LOW` untuk OFF.
-2. Pastikan GPIO26 melewati resistor 1k ohm ke base transistor.
-3. Pastikan emitter ke GND bersama.
-4. Pastikan collector ke sisi negatif LED/load.
-5. Pastikan LED satuan memakai resistor seri.
-6. Jika LED strip menarik arus besar, ganti transistor NPN kecil dengan logic-level N-MOSFET.
+1. Use a 2.4 GHz WiFi network.
+2. Recheck credentials in `src/main.cpp`.
+3. Watch Serial Monitor at `115200`.
+4. Move ESP32 closer to router.
 
-## Clap Tidak Terdeteksi
+## Relay Does Not Click
 
-Kemungkinan penyebab:
+Possible causes:
 
-- Threshold terlalu tinggi.
-- Sensor terlalu jauh dari sumber suara.
-- Trimpot KY-037 kurang sensitif.
-- AO tidak terhubung ke GPIO34.
+- Relay IN is not connected to GPIO2 / D2.
+- Relay VCC or GND is missing.
+- Relay input side and ESP32 do not share ground.
+- Relay module is active LOW.
 
-Solusi:
+Solutions:
 
-1. Lihat nilai analog di dashboard ketika tepuk tangan.
-2. Turunkan threshold secara bertahap.
-3. Atur trimpot KY-037.
-4. Pastikan AO ke GPIO34 dan GND tersambung.
+1. Confirm relay IN goes to GPIO2 / D2.
+2. Confirm relay VCC goes to the red rail and GND to the blue rail.
+3. If the relay module is active LOW, swap `RELAY_ON_LEVEL` and `RELAY_OFF_LEVEL` in `src/main.cpp`.
 
-## Terlalu Sering False Trigger
+## Clap Is Not Detected
 
-Kemungkinan penyebab:
+Possible causes:
 
-- Threshold terlalu rendah.
-- Lingkungan terlalu bising.
-- Sensor menangkap getaran meja atau lingkungan sekitar.
+- KY-037 DO is not connected to GPIO22 / D22.
+- KY-037 VCC or GND is missing.
+- KY-037 trimpot is poorly adjusted.
+- Clap mode is disabled in Blynk.
 
-Solusi:
+Solutions:
 
-1. Naikkan threshold.
-2. Jauhkan sensor dari sumber getaran.
-3. Pastikan clap mode dimatikan ketika tidak dibutuhkan.
+1. Set Blynk `V1` to `1`.
+2. Watch Blynk `V3` while clapping.
+3. Adjust the KY-037 trimpot.
+4. Confirm the KY-037 module LED changes when clapping.
 
-## Upload Gagal
+## Too Many False Triggers
 
-Kemungkinan penyebab:
+Possible causes:
 
-- Driver CP2102 belum terpasang.
-- Port serial sedang dipakai Serial Monitor.
-- Board tidak masuk bootloader mode.
+- KY-037 trimpot is too sensitive.
+- Sensor picks up table vibration or nearby noise.
+- Relay click or bulb fixture vibration triggers the sensor.
 
-Solusi:
+Solutions:
 
-1. Tutup Serial Monitor.
-2. Cabut dan pasang ulang ESP32.
-3. Tahan tombol `BOOT` saat upload mulai.
-4. Pastikan driver CP2102 sudah terpasang.
+1. Reduce sensor sensitivity with the trimpot.
+2. Move the KY-037 away from relay and bulb wiring.
+3. Increase `CLAP_COOLDOWN_MS` in `src/main.cpp` if needed.

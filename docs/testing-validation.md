@@ -2,71 +2,57 @@
 
 ## Build Check
 
-Jalankan:
+Run:
 
 ```bash
 pio run
 ```
 
-Build dinyatakan valid jika PlatformIO menampilkan `SUCCESS`.
+Build is valid when PlatformIO reports success for `env:esp32dev`.
 
-## WiFi Check
+## Upload Check
 
-1. Buka Serial Monitor di `115200`.
-2. Reset ESP32.
-3. Pastikan muncul alamat IP dashboard.
-4. Buka alamat IP tersebut dari browser di jaringan yang sama.
+Run:
 
-## Dashboard Check
-
-- Status lampu tampil sebagai ON atau OFF.
-- Tombol ON menyalakan LED 5V.
-- Tombol OFF mematikan LED 5V.
-- Tombol TOGGLE membalik status LED.
-- Clap mode bisa berubah ON/OFF.
-- Nilai analog berubah ketika ada suara.
-- Slider threshold mengubah nilai threshold.
-
-## API Check
-
-Contoh dengan browser atau HTTP client:
-
-```text
-GET http://<ip-esp32>/api/status
-GET http://<ip-esp32>/api/on
-GET http://<ip-esp32>/api/off
-GET http://<ip-esp32>/api/toggle
-GET http://<ip-esp32>/api/clap-mode
-GET http://<ip-esp32>/api/threshold?value=2200
+```bash
+pio run --target upload
 ```
 
-## Clap Detection Check
+Upload requires the ESP32 to be connected and the serial port to be free.
 
-1. Aktifkan clap mode.
-2. Set threshold awal sekitar `2200`.
-3. Tepuk sekali dan amati apakah lampu toggle satu kali.
-4. Tepuk dua kali sangat cepat dan pastikan cooldown mencegah trigger ganda yang tidak diinginkan.
-5. Sesuaikan threshold jika ruangan terlalu bising atau sensor kurang sensitif.
+## Blynk Connection Check
 
-## 5V LED Output Check
+1. Open Serial Monitor at `115200`.
+2. Reset ESP32.
+3. Confirm the device connects to WiFi and Blynk.
+4. Confirm the device shows online in Blynk.
 
-- Saat ESP32 boot, LED harus OFF.
-- Perintah ON harus membuat GPIO26 `HIGH`.
-- Perintah OFF harus membuat GPIO26 `LOW`.
-- LED tidak boleh tersambung langsung ke GPIO ESP32.
-- Resistor 1k ohm harus berada antara GPIO26 dan base transistor.
-- LED satuan harus memakai resistor pembatas arus, misalnya 220 ohm.
-- Emitter transistor harus ke GND bersama.
-- Collector transistor harus ke sisi negatif LED/load.
-- ESP32 tidak boleh reset berulang saat LED ON.
-- Transistor tidak boleh panas berlebihan.
-- Untuk LED strip yang lebih besar, validasi total arus USB dan pertimbangkan logic-level N-MOSFET.
+## Blynk Control Check
+
+- `V0 = 1` turns relay GPIO2 ON.
+- `V0 = 0` turns relay GPIO2 OFF.
+- Pressing `V2` toggles the relay once and resets `V2` to `0`.
+- `V1 = 1` enables clap mode.
+- `V1 = 0` disables clap mode.
+- `V3` reflects KY-037 DO trigger state.
+- `V4` increases over time.
+- `V5` reports WiFi RSSI.
+
+## Relay and Bulb Safety Check
+
+Start without mains voltage connected to the bulb side.
+
+- On boot, relay GPIO2 should be OFF.
+- Blynk `V0 = 1` should activate the relay input.
+- Blynk `V0 = 0` should deactivate the relay input.
+- Relay clicking should match Blynk state.
+- Only connect the bulb load after low-voltage relay input behavior is correct.
 
 ## Regression Checklist
 
-- Tidak ada library eksternal di `platformio.ini`.
-- Endpoint tetap mengembalikan JSON.
-- Threshold menolak nilai di luar `0..4095`.
-- UI tetap auto-refresh setiap 500 ms.
-- DO sensor tetap tampil di `/api/status`.
-- Output lampu tetap active HIGH untuk transistor switch.
+- `platformio.ini` targets ESP32 DevKit V1.
+- Firmware keeps relay pin GPIO2 / D2.
+- Firmware keeps KY-037 DO on GPIO22 / D22.
+- Real WiFi password and Blynk token are not committed.
+- Clap detection uses arming and cooldown.
+- Relay starts OFF on boot.

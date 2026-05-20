@@ -11,7 +11,14 @@
   },
   "motionPaletteDecision": {
     "motionDensitySource": "Embedded device dashboard with high-frequency sensor refresh",
-    "requiredInteractionStates": ["default", "hover", "focus-visible", "active", "success", "error"],
+    "requiredInteractionStates": [
+      "default",
+      "hover",
+      "focus-visible",
+      "active",
+      "success",
+      "error"
+    ],
     "paletteAutopilotRisk": "Avoid generic dark dashboard by deriving colors from electrical status roles",
     "threeDimensionalOrCanvasUse": "Unnecessary for relay control and ESP32-hosted UI"
   },
@@ -69,5 +76,37 @@
   },
   "repoEvidence": {
     "designEvidenceSummary": "Existing repo is a PlatformIO ESP32 scaffold with placeholder main.cpp and no docs directory."
+  },
+  "researchDossier": {
+    "metadata": {
+      "researchVerifiedAt": null,
+      "freshnessWindowDays": 90,
+      "freshnessRule": "Research dossier is stale when researchVerifiedAt is null or older than freshnessWindowDays. Stale dossiers must run research-design.md before UI implementation. User-explicit redesign requests bypass freshness and force fresh research regardless of age.",
+      "antiRepeatLedger": {
+        "blocklistFromHistory": true,
+        "ledgerScope": "signature-level-descriptors-only",
+        "ledgerMaxEntriesPerCategory": 3,
+        "previousAnchors": [],
+        "previousPalettes": [
+          {
+            "summary": "Electrical signal semantics for on, off, warning, and panel contrast",
+            "source": "migrated-from-existing-design-intent",
+            "blockedBecause": "previously-shipped-palette-behavior"
+          }
+        ],
+        "previousMotionSignatures": [],
+        "previousTypographyChoices": []
+      },
+      "userExplicitRedesignBypassesFreshness": true,
+      "statusAwareValidation": {
+        "seedStatuses": [
+          "seed-needs-design-synthesis",
+          "seed-generated-during-init",
+          "seed-generated-during-upgrade"
+        ],
+        "seedSkipsDossierShape": true,
+        "activeRequiresFreshOrExplicitRedesign": true
+      }
+    }
   }
 }

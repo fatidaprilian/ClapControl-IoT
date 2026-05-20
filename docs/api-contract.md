@@ -1,125 +1,53 @@
-# API Contract
+# Blynk Contract
 
-Base URL adalah alamat IP ESP32 di jaringan lokal, misalnya:
+The active ESP32 build uses Blynk virtual pins for remote relay control and telemetry.
 
-```text
-http://192.168.1.25
+## Credentials
+
+Set these placeholders in `src/main.cpp` from the Blynk Console and local WiFi:
+
+```cpp
+#define BLYNK_TEMPLATE_ID "GANTI_TEMPLATE_ID"
+#define BLYNK_TEMPLATE_NAME "ClapControl IoT"
+#define BLYNK_AUTH_TOKEN "GANTI_AUTH_TOKEN"
+
+const char WIFI_SSID[] = "GANTI_NAMA_WIFI";
+const char WIFI_PASSWORD[] = "GANTI_PASSWORD_WIFI";
 ```
 
-Semua response API memakai `application/json`.
+Do not commit real tokens or WiFi passwords.
 
-## `GET /api/status`
+## Virtual Pins
 
-Mengambil status lengkap perangkat.
+| Virtual Pin | Direction | Data Type | Range | Purpose |
+| --- | --- | --- | --- | --- |
+| `V0` | App to device, device to app | Integer | `0` or `1` | Lamp switch. `1` turns relay ON, `0` turns relay OFF |
+| `V1` | App to device, device to app | Integer | `0` or `1` | Clap mode. `1` enables clap control |
+| `V2` | App to device | Integer | `0` or `1` | Momentary toggle button. Firmware resets it to `0` after use |
+| `V3` | Device to app | Integer | `0` or `1` | KY-037 DO trigger indicator |
+| `V4` | Device to app | Integer | `0` and up | Uptime in seconds |
+| `V5` | Device to app | Integer | negative dBm value | WiFi RSSI |
 
-### Response 200
+## Recommended Widgets
 
-```json
-{
-  "lampOn": true,
-  "clapMode": true,
-  "analog": 2375,
-  "digital": 1,
-  "threshold": 2200,
-  "cooldownMs": 650,
-  "wifiRssi": -54,
-  "uptimeMs": 125430
-}
-```
+| Widget | Datastream |
+| --- | --- |
+| Switch | `V0` |
+| Switch | `V1` |
+| Button, push mode | `V2` |
+| LED or Label | `V3` |
+| Label | `V4` |
+| Label | `V5` |
 
-### Field
+## Hardware Contract
 
-| Field | Tipe | Keterangan |
+| Signal | ESP32 Pin | Behavior |
 | --- | --- | --- |
-| `lampOn` | boolean | `true` jika LED/lampu 5V ON |
-| `clapMode` | boolean | `true` jika clap mode aktif |
-| `analog` | number | Nilai ADC KY-037 AO, rentang 0 sampai 4095 |
-| `digital` | number | Nilai KY-037 DO, `0` atau `1` |
-| `threshold` | number | Threshold analog aktif |
-| `cooldownMs` | number | Cooldown clap detection |
-| `wifiRssi` | number | Kekuatan sinyal WiFi dalam dBm |
-| `uptimeMs` | number | Waktu hidup ESP32 dalam milidetik |
+| Relay IN | GPIO2 / D2 | Active HIGH by default |
+| KY-037 DO | GPIO22 / D22 | Active LOW sound trigger |
 
-## `GET /api/on`
+## Security Notes
 
-Menyalakan LED/lampu 5V.
+Blynk auth token and WiFi credentials are secrets. Keep placeholders in committed source and use local values only for flashing the physical device.
 
-### Response 200
-
-Response sama seperti `/api/status`.
-
-## `GET /api/off`
-
-Mematikan LED/lampu 5V.
-
-### Response 200
-
-Response sama seperti `/api/status`.
-
-## `GET /api/toggle`
-
-Mengubah status LED/lampu 5V dari ON ke OFF atau OFF ke ON.
-
-### Response 200
-
-Response sama seperti `/api/status`.
-
-## `GET /api/clap-mode`
-
-Toggle clap mode.
-
-### Response 200
-
-Response sama seperti `/api/status`.
-
-## `GET /api/clap-mode?enabled=true`
-
-Mengatur clap mode secara eksplisit.
-
-Nilai yang dianggap aktif:
-
-- `true`
-- `1`
-- `on`
-
-Nilai lain dianggap nonaktif.
-
-### Response 200
-
-Response sama seperti `/api/status`.
-
-## `GET /api/threshold?value=2200`
-
-Mengatur threshold analog untuk clap detection.
-
-### Query Parameter
-
-| Parameter | Wajib | Rentang | Keterangan |
-| --- | --- | --- | --- |
-| `value` | Ya | `0` sampai `4095` | Ambang analog KY-037 |
-
-### Response 200
-
-Response sama seperti `/api/status`.
-
-### Response 400
-
-```json
-{
-  "error": "threshold value must be a number from 0 to 4095"
-}
-```
-
-## Endpoint Tidak Dikenal
-
-### Response 404
-
-```json
-{
-  "error": "not found"
-}
-```
-
-## Catatan Keamanan
-
-API ini dirancang untuk jaringan lokal dan tidak memiliki autentikasi. Jangan expose ESP32 langsung ke internet tanpa gateway yang aman.
+Do not expose relay-controlled mains wiring while testing Blynk commands. Validate relay behavior with no mains load first.

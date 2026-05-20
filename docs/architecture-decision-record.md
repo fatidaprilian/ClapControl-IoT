@@ -2,34 +2,28 @@
 
 ## Decision
 
-Use PlatformIO with the Arduino framework for ESP32 DevKit V1, keeping the firmware in a single `src/main.cpp` file because the web dashboard HTML, CSS, JavaScript, lamp output control, sensor reading, and API endpoints are tightly scoped for one embedded device.
+Use PlatformIO with the Arduino framework for ESP32 DevKit V1. Use Blynk as the remote-control surface because ESP32 has built-in WiFi and no extra WiFi modem is required.
 
-Use a USB-only 5V LED output switched by an NPN transistor or logic-level MOSFET. GPIO26 is active HIGH: `HIGH` turns the LED load on, `LOW` turns it off.
+Keep the firmware in a single `src/main.cpp` file because the current scope is one board, one relay output, one sound sensor, and one Blynk integration contract.
+
+Use the current physical wiring:
+
+- Relay IN on GPIO2 / D2.
+- KY-037 DO on GPIO22 / D22.
+- 3V3 to left red rail.
+- GND to left blue rail.
 
 ## Context
 
-The requested device monitors a KY-037 sound sensor, controls a lamp output, and serves a local web dashboard. The user explicitly constrained the implementation to Arduino with `WiFi.h` and `WebServer.h`, with no external libraries.
-
-The hardware direction changed from AC relay switching to a lower-risk, mobile 5V DC system powered by one USB source.
+The project returned from Arduino Uno to ESP32 DevKit V1. The user has ESP32 wired through a breadboard rail layout and can use WiFi directly from the ESP32.
 
 ## Consequences
 
-- The firmware can be built by a normal PlatformIO ESP32 environment without additional dependencies.
-- The web UI is embedded in flash as a raw string, which keeps deployment simple.
-- API endpoints validate user-provided threshold values before applying them.
-- WiFi credentials are placeholders in code and should be replaced locally before upload.
-- KY-037 DO is exposed for monitoring, while clap trigger uses AO plus web-configured threshold for predictable calibration.
-- Dashboard, API, threshold, clap mode, KY-037 monitoring, and WiFi reconnect behavior stay unchanged.
-- GPIO26 output polarity is active HIGH for the transistor switch.
+- Arduino Uno offline code is no longer active.
+- Blynk, WiFi, relay control, clap mode, and telemetry are active again.
+- Real Blynk token and WiFi credentials must stay local and must not be committed.
+- GPIO2 works with the current wiring, but it is a boot-strapping pin on many ESP32 boards. If the board fails to boot, relay IN should move to a safer pin such as GPIO18.
 
 ## Safety Notes
 
-The 5V LED direction removes mains voltage from the prototype, but still requires USB current limits, resistor sizing, transistor rating, and short-circuit safety to be respected.
-
-## Related Docs
-
-- [Architecture](architecture.md)
-- [Flow Overview](flow-overview.md)
-- [API Contract](api-contract.md)
-- [Hardware Setup](hardware-setup.md)
-- [5V LED Migration Guide](5v-led-migration.md)
+The firmware does not drive the bulb directly. It only drives the relay module input. Any mains-voltage bulb wiring must stay isolated from ESP32 logic and must use properly rated hardware.

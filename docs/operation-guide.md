@@ -1,23 +1,36 @@
 # Operation Guide
 
-## Prasyarat
+## Prerequisites
 
-- Visual Studio Code dengan extension PlatformIO, atau PlatformIO CLI.
-- ESP32 DevKit V1 tersambung ke komputer.
-- Jaringan WiFi 2.4 GHz.
+- Visual Studio Code with PlatformIO, or PlatformIO CLI.
+- ESP32 DevKit V1 connected by USB.
+- Relay IN connected to GPIO2 / D2.
+- KY-037 DO connected to GPIO22 / D22.
+- Blynk account, template, device, and auth token.
+- 2.4 GHz WiFi network.
 
-ESP32 umumnya tidak mendukung WiFi 5 GHz, jadi pastikan SSID yang dipakai adalah 2.4 GHz atau mixed mode.
+## Blynk Setup
 
-## Konfigurasi WiFi
+1. Create a Blynk template.
+2. Create a device from that template.
+3. Copy the template ID, template name, and auth token.
+4. Create datastreams from [Blynk Contract](api-contract.md).
+5. Add widgets for lamp switch, clap mode, toggle, sound trigger, uptime, and RSSI.
 
-Buka `src/main.cpp`, lalu sesuaikan:
+## Firmware Configuration
+
+Open `src/main.cpp`, then replace:
 
 ```cpp
-const char *WIFI_SSID = "NAMA_WIFI";
-const char *WIFI_PASSWORD = "PASSWORD_WIFI";
+#define BLYNK_TEMPLATE_ID "GANTI_TEMPLATE_ID"
+#define BLYNK_TEMPLATE_NAME "ClapControl IoT"
+#define BLYNK_AUTH_TOKEN "GANTI_AUTH_TOKEN"
+
+const char WIFI_SSID[] = "GANTI_NAMA_WIFI";
+const char WIFI_PASSWORD[] = "GANTI_PASSWORD_WIFI";
 ```
 
-Jangan commit kredensial WiFi pribadi ke repository publik.
+Do not commit real credentials or tokens.
 
 ## Build
 
@@ -25,13 +38,13 @@ Jangan commit kredensial WiFi pribadi ke repository publik.
 pio run
 ```
 
-Jika `pio` tidak tersedia di terminal, gunakan PlatformIO extension di VS Code atau path CLI PlatformIO yang terpasang di komputer.
-
 ## Upload
 
 ```bash
 pio run --target upload
 ```
+
+Close Serial Monitor before upload.
 
 ## Serial Monitor
 
@@ -39,44 +52,24 @@ pio run --target upload
 pio device monitor --baud 115200
 ```
 
-Setelah WiFi terkoneksi, Serial Monitor akan menampilkan alamat dashboard:
+Startup output includes:
 
 ```text
-WiFi connected. Dashboard: http://<ip-esp32>
+ClapControl IoT - ESP32 DevKit V1 + Blynk
+Relay IN: GPIO2 / D2
+KY-037 DO: GPIO22 / D22
+Connecting to WiFi and Blynk...
 ```
 
-## Menggunakan Dashboard
+## Default Values
 
-1. Buka IP ESP32 dari browser di jaringan yang sama.
-2. Lihat indikator status lampu.
-3. Gunakan tombol ON, OFF, atau TOGGLE.
-4. Aktifkan atau nonaktifkan clap mode.
-5. Amati nilai analog suara.
-6. Geser threshold sampai deteksi tepuk stabil.
-
-## Default Penting
-
-| Setting | Nilai |
+| Setting | Value |
 | --- | --- |
-| Baud Serial | `115200` |
-| Web server port | `80` |
-| Threshold awal | `2200` |
-| Cooldown clap | `650 ms` |
-| LED 5V ON | `HIGH` |
-| LED 5V OFF | `LOW` |
-
-Sebelum menyalakan hardware, baca [5V LED Migration Guide](5v-led-migration.md). Pastikan LED tidak mengambil daya langsung dari GPIO ESP32.
-
-## Setelah Perubahan Kode
-
-Jalankan build ulang:
-
-```bash
-pio run
-```
-
-Jika build sukses, upload ke board:
-
-```bash
-pio run --target upload
-```
+| Serial baud | `115200` |
+| Relay pin | GPIO2 / D2 |
+| Relay ON | `HIGH` |
+| Relay OFF | `LOW` |
+| Sound DO pin | GPIO22 / D22 |
+| Sound active level | `LOW` |
+| Clap cooldown | `650 ms` |
+| Telemetry interval | `1000 ms` |

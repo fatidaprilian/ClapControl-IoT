@@ -4,84 +4,51 @@
 
 ```mermaid
 flowchart TD
-  A[Power on ESP32] --> B[Init Serial 115200]
-  B --> C[Set pin mode sensor and lamp switch]
-  C --> D[Set lamp output OFF]
-  D --> E[Connect to WiFi]
-  E --> F[Register HTTP routes]
-  F --> G[Start WebServer on port 80]
-  G --> H[Enter loop]
+  A[Power on ESP32] --> B[Start Serial 115200]
+  B --> C[Set relay and KY-037 pin modes]
+  C --> D[Set relay OFF]
+  D --> E[Connect WiFi and Blynk]
+  E --> F[Register telemetry timer]
+  F --> G[Enter loop]
 ```
 
 ## Main Loop Flow
 
 ```mermaid
 flowchart TD
-  A[loop] --> B[Check WiFi connection]
-  B --> C[Handle HTTP client]
-  C --> D[Read analog sensor]
-  D --> E{Analog >= threshold?}
-  E -- No --> F[Rearm clap peak]
-  E -- Yes --> G{Clap mode enabled?}
-  G -- No --> H[Do nothing]
-  G -- Yes --> I{Cooldown passed?}
-  I -- No --> H
-  I -- Yes --> J[Toggle 5V LED output]
-  J --> K[Record last clap time and disarm peak]
-  F --> L[Delay 5 ms]
-  H --> L
-  K --> L
+  A[loop] --> B[Blynk.run]
+  B --> C[timer.run]
+  C --> D[Read KY-037 DO on GPIO22]
+  D --> E{DO active LOW?}
+  E -- No --> F[Rearm sound peak]
+  E -- Yes --> G{Clap mode enabled and cooldown passed?}
+  G -- No --> A
+  G -- Yes --> H[Toggle relay GPIO2]
+  H --> I[Publish V0 lamp state]
+  I --> J[Record last clap time and disarm peak]
+  F --> A
+  J --> A
 ```
 
-## Dashboard Refresh Flow
-
-```mermaid
-sequenceDiagram
-  participant Browser
-  participant ESP32
-  Browser->>ESP32: GET /
-  ESP32-->>Browser: HTML dashboard
-  loop every 500 ms
-    Browser->>ESP32: GET /api/status
-    ESP32-->>Browser: lamp, clap mode, sensor, threshold, RSSI
-  end
-```
-
-## Manual Lamp Control Flow
+## Blynk Control Flow
 
 ```mermaid
 sequenceDiagram
   participant User
-  participant Browser
+  participant Blynk
   participant ESP32
-  User->>Browser: Click ON/OFF/TOGGLE
-  Browser->>ESP32: GET /api/on or /api/off or /api/toggle
-  ESP32->>ESP32: Write GPIO26 with active HIGH mapping
-  ESP32-->>Browser: JSON status
-  Browser->>User: Update lamp indicator
-```
-
-## Threshold Update Flow
-
-```mermaid
-sequenceDiagram
-  participant User
-  participant Browser
-  participant ESP32
-  User->>Browser: Move threshold slider
-  Browser->>ESP32: GET /api/threshold?value=2200
-  ESP32->>ESP32: Validate 0..4095
-  ESP32-->>Browser: JSON status or 400 error
+  participant Relay
+  User->>Blynk: Set V0 or press V2
+  Blynk->>ESP32: Virtual pin update
+  ESP32->>Relay: Write GPIO2 HIGH or LOW
+  ESP32-->>Blynk: Publish lamp state
 ```
 
 ## Clap Detection Rules
 
-1. Baca nilai analog KY-037 dari GPIO34.
-2. Jika nilai analog lebih kecil dari threshold, sistem rearm untuk trigger berikutnya.
-3. Jika nilai analog mencapai threshold dan clap mode aktif, cek cooldown.
-4. Jika cooldown sudah lewat, toggle lampu.
-5. Setelah trigger, sistem disarm sampai nilai analog turun lagi.
-
-## Output Polarity Note
-
-LED 5V dengan transistor NPN memakai aktif HIGH: ON menulis `HIGH`, OFF menulis `LOW`. Flow dashboard, API, threshold, dan clap detection tetap sama; mapping output fisik GPIO26 mengikuti transistor switch.
+1. Read KY-037 DO from GPIO22.
+2. Treat `LOW` as sound detected.
+3. Rearm only after DO returns inactive.
+4. Ignore triggers inside the `650 ms` cooldown window.
+5. Toggle relay GPIO2 after a valid clap.
+6. Publish the new relay state to Blynk.

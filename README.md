@@ -1,64 +1,69 @@
 # ClapControl IoT
 
-PlatformIO firmware for an ESP32 DevKit V1 that controls a 5V LED output through an active HIGH transistor switch, reads a KY-037 sound sensor, and exposes a responsive web dashboard over local WiFi.
+PlatformIO firmware for an ESP32 DevKit V1 that controls a bulb relay through Blynk and toggles the relay from a KY-037 sound sensor.
 
-The project now targets a USB-only low-voltage build: ESP32, KY-037, LED 5V, transistor switch, and one 5V USB power source. The old AC relay direction is kept only as historical context in the docs.
+The current wiring uses ESP32 GPIO2 / D2 for the relay input and GPIO22 / D22 for KY-037 digital output.
 
 ## Documentation
 
-Start from [docs/README.md](docs/README.md) for the full project documentation:
+Start from [docs/doc-index.md](docs/doc-index.md) for the full documentation map.
 
-- Project brief
-- Architecture
-- Flow overview
-- API contract
-- Hardware setup
-- 5V LED migration guide
-- Operation guide
-- Testing and troubleshooting
+Core docs:
+
+- [Project Brief](docs/project-brief.md)
+- [Architecture Decision Record](docs/architecture-decision-record.md)
+- [Flow Overview](docs/flow-overview.md)
+- [Blynk Contract](docs/api-contract.md)
+- [Hardware Setup](docs/hardware-setup.md)
+- [Operation Guide](docs/operation-guide.md)
+- [Testing and Validation](docs/testing-validation.md)
+- [Troubleshooting](docs/troubleshooting.md)
 
 ## Hardware
 
-- ESP32 DevKit V1 Type-C CP2102
+- ESP32 DevKit V1
 - KY-037 sound sensor
-- 5V LED or short 5V LED strip
-- NPN transistor, such as 2N2222 or S8050, or a logic-level N-MOSFET for larger LED loads
-- 1k ohm base resistor
-- LED current-limiting resistor for bare LEDs, such as 220 ohm
+- Relay module for bulb switching
+- Bulb load connected through the relay contact side
+
+Do not connect mains voltage directly to the ESP32, breadboard logic pins, or sensor wiring. The ESP32 only drives the relay input.
 
 ## Wiring
 
-| Component | Pin |
+| Component | ESP32 Pin |
 | --- | --- |
-| KY-037 AO | GPIO34 |
-| KY-037 DO | GPIO27 |
-| Lamp output control | GPIO26 |
-| NPN base | GPIO26 through 1k ohm resistor |
-| NPN emitter | Common GND |
-| NPN collector | LED negative side |
-| LED positive side | 5V rail through current limiting as required |
+| ESP32 3V3 | left red rail |
+| ESP32 GND | left blue rail |
+| Relay VCC | left red rail |
+| Relay GND | left blue rail |
+| Relay IN | GPIO2 / D2 |
+| KY-037 + | left red rail |
+| KY-037 G | left blue rail |
+| KY-037 DO | GPIO22 / D22 |
 
-Do not connect AC mains to this build. Follow [docs/5v-led-migration.md](docs/5v-led-migration.md) for the complete wiring and validation guide.
+GPIO2 is a boot-strapping pin on many ESP32 boards. If the board fails to boot with the relay connected, move relay IN to a safer output pin such as GPIO18 and update `RELAY_PIN`.
 
 ## Setup
 
-1. Open `src/main.cpp`.
-2. Replace `GANTI_NAMA_WIFI` and `GANTI_PASSWORD_WIFI`.
-3. Build and upload with PlatformIO:
+1. Create a Blynk template and device.
+2. Open `src/main.cpp`.
+3. Replace `GANTI_TEMPLATE_ID`, `GANTI_TEMPLATE_NAME`, `GANTI_AUTH_TOKEN`, `GANTI_NAMA_WIFI`, and `GANTI_PASSWORD_WIFI`.
+4. Build and upload with PlatformIO:
 
 ```bash
 pio run --target upload
 ```
 
-4. Open the Serial Monitor at `115200` baud and visit the printed ESP32 IP address.
+5. Open the Serial Monitor at `115200` baud.
+6. Control the relay from Blynk or by clapping near the KY-037.
 
-## Web Endpoints
+## Blynk Virtual Pins
 
-- `GET /api/status`
-- `GET /api/on`
-- `GET /api/off`
-- `GET /api/toggle`
-- `GET /api/clap-mode`
-- `GET /api/threshold?value=2200`
-
-The dashboard auto-refreshes status every 500 ms and lets you control the lamp, clap mode, and sound threshold.
+| Virtual Pin | Purpose |
+| --- | --- |
+| `V0` | Lamp switch |
+| `V1` | Clap mode switch |
+| `V2` | Momentary toggle button |
+| `V3` | KY-037 digital trigger indicator |
+| `V4` | Uptime seconds |
+| `V5` | WiFi RSSI |

@@ -1,26 +1,33 @@
-# Dokumentasi ClapControl IoT
+# ClapControl IoT Documentation
 
-Folder ini berisi dokumentasi utama untuk project ESP32 ClapControl IoT.
+This folder contains the active project documentation for the Arduino Uno offline relay version of ClapControl IoT.
 
-## Daftar Dokumen
+Use [Documentation Index](doc-index.md) as the routing map before opening deeper docs.
 
-| Dokumen | Isi |
+## Active Documents
+
+| Document | Purpose |
 | --- | --- |
-| [Project Brief](project-brief.md) | Tujuan, fitur, komponen, dan batasan project |
-| [Architecture](architecture.md) | Struktur firmware, data flow, state, dan batasan desain |
-| [Architecture Decision Record](architecture-decision-record.md) | Keputusan teknis utama dan konsekuensinya |
-| [Flow Overview](flow-overview.md) | Alur boot, web dashboard, API, dan clap detection |
-| [API Contract](api-contract.md) | Endpoint JSON, response, validasi, dan contoh request |
-| [Hardware Setup](hardware-setup.md) | Wiring ESP32, KY-037, LED 5V, transistor, dan kalibrasi |
-| [5V LED Migration Guide](5v-led-migration.md) | Rationale migrasi dari relay/lampu AC ke LED 5V, transistor, dan satu sumber USB |
-| [Operation Guide](operation-guide.md) | Cara build, upload, monitor, dan menggunakan dashboard |
-| [Testing and Validation](testing-validation.md) | Checklist pengujian firmware, API, sensor, dan relay |
-| [Troubleshooting](troubleshooting.md) | Masalah umum dan cara diagnosis |
-| [Design](DESIGN.md) | Arah UI dashboard dan aturan visual |
-| [Design Intent JSON](design-intent.json) | Kontrak desain machine-readable |
+| [Project Brief](project-brief.md) | Goal, users, features, hardware, and constraints |
+| [Architecture](architecture.md) | Firmware structure, state, relay behavior, and safety boundaries |
+| [Architecture Decision Record](architecture-decision-record.md) | Main hardware and runtime decisions |
+| [Flow Overview](flow-overview.md) | Boot and clap-to-relay flow |
+| [Control Contract](api-contract.md) | Current serial logs and hardware control contract |
+| [Hardware Setup](hardware-setup.md) | Arduino Uno, KY-037, relay, and bulb wiring |
+| [Operation Guide](operation-guide.md) | Build, upload, monitor, and runtime operation |
+| [Testing and Validation](testing-validation.md) | Compile, sensor, relay, and safety checks |
+| [Troubleshooting](troubleshooting.md) | Common failures and diagnosis steps |
 
-## Ringkasan
+## Historical Documents
 
-ClapControl IoT adalah firmware PlatformIO untuk ESP32 DevKit V1 yang membaca sensor suara KY-037, mengontrol LED 5V lewat transistor aktif HIGH, dan menyediakan dashboard web lokal untuk monitoring serta kontrol manual. Arah AC relay lama tidak lagi menjadi wiring utama.
+| Document | Purpose |
+| --- | --- |
+| [5V LED Migration Guide](5v-led-migration.md) | Historical ESP32 low-voltage LED direction |
+| [Design](DESIGN.md) | Historical ESP32 local dashboard UI direction |
+| [Design Intent JSON](design-intent.json) | Historical UI design metadata |
 
-Project ini sengaja dibuat dependency-free di luar Arduino core: firmware hanya memakai `WiFi.h` dan `WebServer.h`.
+## Summary
+
+ClapControl IoT now targets an Arduino Uno controlling a bulb through a relay module. This version is offline-first and does not require Blynk, WiFi, or ESP8266 hardware.
+
+Remote control can be added later after a network module or WiFi-capable board is available.

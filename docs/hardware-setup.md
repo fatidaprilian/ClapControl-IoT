@@ -1,124 +1,82 @@
 # Hardware Setup
 
-## Status Hardware
+## Current Hardware Status
 
-Implementasi utama sekarang memakai sistem 5V DC hemat daya:
-
-```text
-ESP32 DevKit V1 + KY-037 + LED 5V + transistor switch + satu sumber USB 5V
-```
-
-Relay, fitting, steker, kabel AC, dan lampu bohlam AC tidak dipakai. Jangan sambungkan tegangan PLN/AC ke rakitan ini.
-
-## Komponen
-
-- ESP32 DevKit V1 Type-C CP2102.
-- Sensor suara KY-037.
-- LED 5V satuan atau LED strip 5V pendek.
-- Transistor NPN 2N2222 atau S8050.
-- Resistor 1k ohm untuk base transistor.
-- Resistor 220 ohm untuk LED satuan tanpa resistor bawaan.
-- Kabel jumper.
-- Sumber daya USB 5V dari komputer, adaptor USB, atau power bank.
-
-Untuk LED strip yang lebih panjang atau arusnya lebih besar, gunakan logic-level N-MOSFET sebagai pengganti NPN kecil.
-
-## Wiring ESP32 ke KY-037
-
-| KY-037 | ESP32 | Catatan |
-| --- | --- | --- |
-| VCC | 3V3 atau 5V sesuai modul | Banyak modul KY-037 bisa memakai 3.3V atau 5V, cek modul yang digunakan |
-| GND | GND | Ground harus tersambung bersama ESP32 |
-| AO | GPIO34 | Input analog ADC, rentang baca 0 sampai 4095 |
-| DO | GPIO27 | Input digital untuk monitoring |
-
-## Wiring LED 5V Dengan Transistor NPN
-
-GPIO26 tidak memberi daya langsung ke LED. GPIO26 hanya memberi sinyal ke base transistor melalui resistor 1k ohm.
-
-| Bagian | Koneksi | Catatan |
-| --- | --- | --- |
-| ESP32 5V/VIN | Rail 5V breadboard | Sumber daya LED kecil dan sensor |
-| ESP32 GND | Rail GND breadboard | Ground bersama |
-| GPIO26 | Resistor 1k ohm ke base NPN | Sinyal active HIGH |
-| Base NPN | Dari resistor 1k ohm | Jangan langsung ke GPIO tanpa resistor |
-| Emitter NPN | GND rail | Low-side switch |
-| Collector NPN | Sisi negatif LED/load | Arus LED mengalir lewat transistor |
-| Sisi positif LED | 5V melalui resistor 220 ohm | Untuk LED satuan |
-
-Rangkaian LED satuan:
+The active build is:
 
 ```text
-5V rail
-  |
-  |-- resistor 220 ohm -- anode LED
-                            cathode LED -- collector NPN
-                                           emitter NPN -- GND rail
-
-GPIO26 -- resistor 1k ohm -- base NPN
+ESP32 DevKit V1 + KY-037 DO + relay module + bulb + Blynk
 ```
 
-Rangkaian LED strip 5V pendek:
+The ESP32 controls the relay input. The bulb must be wired only through the relay contact side.
 
-```text
-5V rail -- LED strip +5V
-LED strip negative/GND -- collector NPN
-emitter NPN -- GND rail
+## Components
 
-GPIO26 -- resistor 1k ohm -- base NPN
-```
+- ESP32 DevKit V1.
+- KY-037 sound sensor.
+- Relay module that works from 3.3V control/power in the current build.
+- Bulb and lamp wiring.
+- Jumper wires.
 
-Banyak LED strip 5V sudah punya resistor atau rangkaian pembatas arus. Jangan menambahkan resistor 220 ohm seri untuk seluruh strip kecuali spesifikasi strip memang memerlukannya.
+## Power Rails
 
-## Common Ground Wajib
+| ESP32 | Breadboard |
+| --- | --- |
+| 3V3 | left red rail |
+| GND | left blue rail |
 
-Semua ground harus tersambung:
+All relay and KY-037 logic power comes from those rails in the current wiring.
 
-```text
-ESP32 GND = KY-037 GND = emitter transistor = USB 5V ground
-```
+## Relay Wiring
 
-Tanpa common ground, sinyal GPIO26 tidak punya referensi yang benar untuk menyalakan transistor.
+| Relay Module | Connection |
+| --- | --- |
+| VCC | left red rail |
+| GND | left blue rail |
+| IN | ESP32 GPIO2 / D2 |
 
-## Logika Output Firmware
+Relay logic:
 
-Transistor NPN low-side memakai active HIGH:
-
-| Status LED | GPIO26 |
+| Lamp State | GPIO2 |
 | --- | --- |
 | ON | `HIGH` |
 | OFF | `LOW` |
 
-Saat ESP32 boot, firmware memanggil `setLamp(false)` agar LED berada pada kondisi OFF.
+GPIO2 is a boot-strapping pin on many ESP32 boards. If the ESP32 fails to boot, disconnect relay IN during boot or move relay IN to GPIO18 and update `RELAY_PIN`.
 
-## Batas Arus USB
+## KY-037 Wiring
 
-Satu kabel USB membuat rakitan lebih ringkas, tetapi arus tetap terbatas.
+| KY-037 | Connection |
+| --- | --- |
+| `+` | left red rail |
+| `G` | left blue rail |
+| `DO` | ESP32 GPIO22 / D22 |
 
-- Single LED dengan resistor 220 ohm aman untuk pengujian awal.
-- Beberapa LED kecil masih masuk akal jika total arus rendah.
-- LED strip panjang tidak disarankan lewat breadboard kecil.
-- Jika ESP32 reset saat LED menyala, beban LED terlalu besar atau supply USB drop.
-- Jika transistor panas, matikan rangkaian dan kurangi beban.
+The active firmware uses KY-037 DO only. Adjust the KY-037 trimpot if the trigger is too sensitive or never triggers.
 
-## Kalibrasi KY-037
+## Bulb Wiring Safety
 
-1. Upload firmware dan buka dashboard.
-2. Amati nilai analog saat ruangan tenang.
-3. Tepuk tangan di jarak penggunaan normal dan catat puncak nilai analog.
-4. Atur threshold sedikit di atas noise normal dan di bawah puncak tepuk.
-5. Jika sering false trigger, naikkan threshold.
-6. Jika tepuk tidak terdeteksi, turunkan threshold atau atur trimpot KY-037.
+The relay contact side is separate from ESP32 logic. Use the relay module's rated contact terminals for the bulb circuit.
 
-## Catatan Pin ESP32
+Minimum safety rules:
 
-GPIO34 adalah input-only, cocok untuk AO sensor. Pin ini tidak bisa dipakai sebagai output.
+1. Keep mains voltage away from the ESP32, KY-037, USB cable, and breadboard logic side.
+2. Disconnect power before changing bulb or relay wiring.
+3. Use insulated terminals, proper wire gauge, and an enclosure.
+4. Do not touch exposed relay contact wiring while powered.
+5. Test firmware and relay clicking without a mains bulb before connecting the final load.
 
-GPIO26 dipakai sebagai output kontrol transistor. Jangan sambungkan LED langsung ke GPIO26.
+## Relay Contact Wiring
 
-## Upload Firmware
+Most relay modules expose `COM`, `NO`, and `NC`.
 
-1. Sambungkan ESP32 ke komputer via USB Type-C.
-2. Pastikan board terdeteksi oleh PlatformIO.
-3. Jalankan upload dari PlatformIO.
-4. Jika gagal masuk mode flash, tahan tombol `BOOT` saat proses upload mulai, lalu lepas setelah writing berjalan.
+- Use `COM` and `NO` when the bulb should be OFF by default and ON only when the relay activates.
+- Use `COM` and `NC` only if you intentionally want the bulb ON by default.
+
+## Common Ground
+
+The ESP32, KY-037, and relay input side must share ground:
+
+```text
+ESP32 GND = KY-037 GND = relay module GND
+```

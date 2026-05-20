@@ -1,60 +1,48 @@
 # Project Brief
 
-## Nama Project
+## Project Name
 
 ClapControl IoT
 
-## Tujuan
+## Goal
 
-Membuat sistem kendali lampu berbasis IoT menggunakan ESP32 DevKit V1, sensor suara KY-037, LED 5V yang dikontrol transistor aktif HIGH, dashboard web lokal, dan deteksi tepuk tangan.
+Build an ESP32 lamp controller that toggles a bulb through a relay module, listens to a KY-037 sound sensor, and exposes manual control plus telemetry through Blynk.
 
-Seluruh sistem memakai satu sumber USB 5V. Relay, fitting, steker, kabel AC, dan lampu bohlam AC tidak dipakai pada implementasi utama.
+## Main Features
 
-## Target Pengguna
+- ESP32 connects to WiFi and Blynk.
+- Blynk switch turns the bulb relay ON or OFF.
+- Blynk momentary button toggles the relay.
+- Clap mode can be enabled or disabled from Blynk.
+- KY-037 DO can toggle the relay when clap mode is enabled.
+- Blynk displays sound trigger, uptime, and WiFi signal.
+- Relay starts OFF after boot.
 
-- Pengguna yang ingin mengontrol lampu dari jaringan WiFi lokal.
-- Pengguna yang ingin menguji kendali lampu dengan deteksi tepuk tangan.
-- Pengguna yang membutuhkan monitoring nilai sensor suara secara realtime.
-- Pengguna yang membutuhkan prototype IoT mobile tanpa wiring PLN.
+## Components
 
-## Fitur Utama
+- ESP32 DevKit V1.
+- KY-037 sound sensor.
+- Relay module matched to the bulb voltage and current.
+- Bulb and safe lamp wiring through the relay contact side.
 
-- ESP32 terkoneksi ke WiFi sebagai web server lokal.
-- Dashboard web modern dan responsif.
-- Status lampu ON/OFF.
-- Tombol manual ON, OFF, dan TOGGLE.
-- Mode clap dapat diaktifkan atau dinonaktifkan dari dashboard.
-- Nilai sensor analog KY-037 ditampilkan realtime.
-- Threshold sensor bisa diatur dari web.
-- Clap detection memakai cooldown untuk mengurangi double trigger.
-- Endpoint JSON untuk status dan kontrol.
+## Pin Map
 
-## Komponen
-
-- ESP32 DevKit V1 Type-C CP2102.
-- Sensor suara KY-037.
-- LED 5V atau LED strip 5V pendek.
-- Transistor NPN 2N2222 atau S8050.
-- Resistor 1k ohm untuk base transistor.
-- Resistor 220 ohm untuk LED satuan.
-
-## Pin
-
-| Fungsi | Pin ESP32 |
+| Function | ESP32 Pin |
 | --- | --- |
-| KY-037 AO | GPIO34 |
-| KY-037 DO | GPIO27 |
-| Output lampu | GPIO26 |
+| Relay IN | GPIO2 / D2 |
+| KY-037 DO | GPIO22 / D22 |
+| 3.3V rail | ESP32 3V3 |
+| Ground rail | ESP32 GND |
 
-## Batasan Teknis
+## Technical Constraints
 
 - Framework: Arduino.
 - Build system: PlatformIO.
-- Library eksternal tidak digunakan.
-- Library yang digunakan: `WiFi.h` dan `WebServer.h`.
-- HTML, CSS, dan JavaScript dashboard disimpan langsung di `src/main.cpp`.
-- Output LED 5V aktif HIGH: `HIGH` berarti LED ON, `LOW` berarti LED OFF.
+- Board target: ESP32 DevKit V1.
+- Cloud control: Blynk static token flow.
+- Relay logic: active HIGH. `HIGH` turns the bulb relay ON, `LOW` turns it OFF.
+- Clap detection source: KY-037 DO active LOW.
 
-## Risiko dan Catatan Keselamatan
+## Safety Notes
 
-Implementasi utama tidak memakai tegangan AC/PLN. Risiko utama ada pada batas arus USB, short circuit 5V, rating transistor, orientasi LED, dan panas komponen. Detail hardware ada di [5V LED Migration Guide](5v-led-migration.md).
+The ESP32 controls only the relay input. Bulb voltage must stay on the relay contact side and must not touch ESP32 logic, breadboard sensor wiring, or USB-connected equipment.
