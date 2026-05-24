@@ -1,53 +1,67 @@
-# Blynk Contract
+# Web API Contract
 
-The active ESP32 build uses Blynk virtual pins for remote relay control and telemetry.
+The active ESP32 build exposes a local WiFi dashboard and JSON endpoints on port `80`.
 
-## Credentials
+## Pages and Assets
 
-Set these placeholders in `src/main.cpp` from the Blynk Console and local WiFi:
+| Route | Purpose |
+| --- | --- |
+| `GET /` | Dashboard HTML |
+| `GET /styles.css` | Dashboard CSS |
+| `GET /app.js` | Dashboard JavaScript |
 
-```cpp
-#define BLYNK_TEMPLATE_ID "GANTI_TEMPLATE_ID"
-#define BLYNK_TEMPLATE_NAME "ClapControl IoT"
-#define BLYNK_AUTH_TOKEN "GANTI_AUTH_TOKEN"
+The UI source is separated in `include/web_ui.h`.
 
-const char WIFI_SSID[] = "GANTI_NAMA_WIFI";
-const char WIFI_PASSWORD[] = "GANTI_PASSWORD_WIFI";
+## Status
+
+### `GET /api/status`
+
+Response:
+
+```json
+{
+  "relayOn": false,
+  "analog": 1200,
+  "peak": 2200,
+  "digitalActive": false,
+  "soundActive": false,
+  "clapMode": true,
+  "threshold": 1800,
+  "minActiveMs": 5,
+  "cooldownMs": 650,
+  "clapCount": 0,
+  "wifiRssi": -54,
+  "uptimeMs": 12345
+}
 ```
 
-Do not commit real tokens or WiFi passwords.
+## Relay Control
 
-## Virtual Pins
+### `GET /api/relay?state=on`
+### `GET /api/relay?state=off`
+### `GET /api/relay?state=toggle`
 
-| Virtual Pin | Direction | Data Type | Range | Purpose |
-| --- | --- | --- | --- | --- |
-| `V0` | App to device, device to app | Integer | `0` or `1` | Lamp switch. `1` turns relay ON, `0` turns relay OFF |
-| `V1` | App to device, device to app | Integer | `0` or `1` | Clap mode. `1` enables clap control |
-| `V2` | App to device | Integer | `0` or `1` | Momentary toggle button. Firmware resets it to `0` after use |
-| `V3` | Device to app | Integer | `0` or `1` | KY-037 DO trigger indicator |
-| `V4` | Device to app | Integer | `0` and up | Uptime in seconds |
-| `V5` | Device to app | Integer | negative dBm value | WiFi RSSI |
+All relay actions return the same JSON shape as `/api/status`.
 
-## Recommended Widgets
+## Clap Mode
 
-| Widget | Datastream |
-| --- | --- |
-| Switch | `V0` |
-| Switch | `V1` |
-| Button, push mode | `V2` |
-| LED or Label | `V3` |
-| Label | `V4` |
-| Label | `V5` |
+### `GET /api/clap`
 
-## Hardware Contract
+Toggles clap mode.
 
-| Signal | ESP32 Pin | Behavior |
+### `GET /api/clap?enabled=1`
+### `GET /api/clap?enabled=0`
+
+Sets clap mode explicitly.
+
+## Sensitivity
+
+### `GET /api/sensitivity?threshold=1800&hold=20&cooldown=650`
+
+| Query | Range | Purpose |
 | --- | --- | --- |
-| Relay IN | GPIO2 / D2 | Active HIGH by default |
-| KY-037 DO | GPIO22 / D22 | Active LOW sound trigger |
+| `hold` | `5..250` ms | Minimum time KY-037 AO must stay above threshold |
+| `cooldown` | `200..2000` ms | Delay before another clap can toggle relay |
+| `threshold` | `50..4095` | Analog AO threshold from GPIO34 |
 
-## Security Notes
-
-Blynk auth token and WiFi credentials are secrets. Keep placeholders in committed source and use local values only for flashing the physical device.
-
-Do not expose relay-controlled mains wiring while testing Blynk commands. Validate relay behavior with no mains load first.
+This changes the firmware threshold used for clap detection. KY-037 DO is still exposed as diagnostic state.

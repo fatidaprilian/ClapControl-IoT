@@ -1,75 +1,65 @@
 # Operation Guide
 
-## Prerequisites
+## Before Upload
 
-- Visual Studio Code with PlatformIO, or PlatformIO CLI.
-- ESP32 DevKit V1 connected by USB.
-- Relay IN connected to GPIO2 / D2.
-- KY-037 DO connected to GPIO22 / D22.
-- Blynk account, template, device, and auth token.
-- 2.4 GHz WiFi network.
+1. Wire the current hardware contract:
+   - Relay drive to GPIO25 / D25.
+   - KY-037 DO to GPIO35 / D35.
+   - KY-037 AO to GPIO34 / D34.
+   - Relay VCC to the 5V / VIN rail if the relay module requires 5V.
+   - KY-037 `+` to the 3.3V rail.
+   - All grounds common.
+2. Copy `include/secrets.example.h` to `include/secrets.h`.
+3. Put the local WiFi SSID and password in `include/secrets.h`.
 
-## Blynk Setup
+Do not commit `include/secrets.h`.
 
-1. Create a Blynk template.
-2. Create a device from that template.
-3. Copy the template ID, template name, and auth token.
-4. Create datastreams from [Blynk Contract](api-contract.md).
-5. Add widgets for lamp switch, clap mode, toggle, sound trigger, uptime, and RSSI.
-
-## Firmware Configuration
-
-Open `src/main.cpp`, then replace:
-
-```cpp
-#define BLYNK_TEMPLATE_ID "GANTI_TEMPLATE_ID"
-#define BLYNK_TEMPLATE_NAME "ClapControl IoT"
-#define BLYNK_AUTH_TOKEN "GANTI_AUTH_TOKEN"
-
-const char WIFI_SSID[] = "GANTI_NAMA_WIFI";
-const char WIFI_PASSWORD[] = "GANTI_PASSWORD_WIFI";
-```
-
-Do not commit real credentials or tokens.
-
-## Build
-
-```bash
-pio run
-```
-
-## Upload
+## Build and Upload
 
 ```bash
 pio run --target upload
 ```
 
-Close Serial Monitor before upload.
+If upload cannot find the board, list ports:
 
-## Serial Monitor
+```bash
+pio device list
+```
+
+Then upload with the detected port:
+
+```bash
+pio run --target upload --upload-port COM3
+```
+
+If ESP32 fails to enter download mode, hold `BOOT` when upload starts and release it after writing begins.
+
+## Run
+
+Open Serial Monitor:
 
 ```bash
 pio device monitor --baud 115200
 ```
 
-Startup output includes:
+The firmware prints a dashboard URL such as:
 
 ```text
-ClapControl IoT - ESP32 DevKit V1 + Blynk
-Relay IN: GPIO2 / D2
-KY-037 DO: GPIO22 / D22
-Connecting to WiFi and Blynk...
+Dashboard: http://192.168.1.25
 ```
 
-## Default Values
+Open that URL from a device on the same WiFi network.
 
-| Setting | Value |
-| --- | --- |
-| Serial baud | `115200` |
-| Relay pin | GPIO2 / D2 |
-| Relay ON | `HIGH` |
-| Relay OFF | `LOW` |
-| Sound DO pin | GPIO22 / D22 |
-| Sound active level | `LOW` |
-| Clap cooldown | `650 ms` |
-| Telemetry interval | `1000 ms` |
+## Web Controls
+
+- `ON`, `OFF`, and `TOGGLE` control the relay.
+- `Clap mode` enables or disables sound-triggered relay changes.
+- `Threshold analog` sets the AO threshold from GPIO34.
+- `Hold aktif` requires the sound level to stay above threshold for a short time.
+- `Cooldown` prevents one clap from toggling the relay repeatedly.
+
+Start with a threshold slightly above the idle AO value shown on the dashboard. Clap near the sensor, watch the peak value, then set the threshold between idle and clap peak.
+
+Do not use threshold `0`. The firmware clamps threshold to at least `50` because analog detection treats values at or above threshold as active.
+
+If the peak value does not move when you clap, shout, or tap near the microphone, treat it as a hardware or wiring issue first. Confirm AO goes to GPIO34, the sensor gets 3.3V, ground is common, and the KY-037 module is not faulty.

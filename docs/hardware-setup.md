@@ -1,82 +1,49 @@
 # Hardware Setup
 
-## Current Hardware Status
-
-The active build is:
+## Current Wiring
 
 ```text
-ESP32 DevKit V1 + KY-037 DO + relay module + bulb + Blynk
+ESP32 DevKit V1 + KY-037 DO + relay module + bulb + local WiFi dashboard
 ```
 
-The ESP32 controls the relay input. The bulb must be wired only through the relay contact side.
-
-## Components
-
-- ESP32 DevKit V1.
-- KY-037 sound sensor.
-- Relay module that works from 3.3V control/power in the current build.
-- Bulb and lamp wiring.
-- Jumper wires.
-
-## Power Rails
-
-| ESP32 | Breadboard |
+| Part | Connection |
 | --- | --- |
-| 3V3 | left red rail |
-| GND | left blue rail |
+| Relay drive | ESP32 GPIO25 / D25 |
+| KY-037 DO | ESP32 GPIO35 / D35 |
+| KY-037 AO | ESP32 GPIO34 / D34 |
+| Relay VCC | 5V / VIN rail |
+| Relay GND | GND rail |
+| KY-037 + | 3V3 rail |
+| KY-037 G | GND rail |
 
-All relay and KY-037 logic power comes from those rails in the current wiring.
+GPIO34 and GPIO35 are input-only pins. GPIO34 reads analog threshold data, and GPIO35 is kept as a digital diagnostic input.
 
-## Relay Wiring
+## Relay Note
 
-| Relay Module | Connection |
-| --- | --- |
-| VCC | left red rail |
-| GND | left blue rail |
-| IN | ESP32 GPIO2 / D2 |
+The current firmware assumes the ESP32 drives a transistor or relay input with:
 
-Relay logic:
-
-| Lamp State | GPIO2 |
+| Relay State | GPIO25 |
 | --- | --- |
 | ON | `HIGH` |
 | OFF | `LOW` |
 
-GPIO2 is a boot-strapping pin on many ESP32 boards. If the ESP32 fails to boot, disconnect relay IN during boot or move relay IN to GPIO18 and update `RELAY_PIN`.
+If your relay module is directly connected and active LOW, swap `RELAY_ON_LEVEL` and `RELAY_OFF_LEVEL` in `src/main.cpp`.
 
-## KY-037 Wiring
+## KY-037 Note
 
-| KY-037 | Connection |
-| --- | --- |
-| `+` | left red rail |
-| `G` | left blue rail |
-| `DO` | ESP32 GPIO22 / D22 |
+Use both signal pins:
 
-The active firmware uses KY-037 DO only. Adjust the KY-037 trimpot if the trigger is too sensitive or never triggers.
+- `AO -> GPIO34 / D34` for web-controlled threshold.
+- `DO -> GPIO35 / D35` for diagnostic state.
 
-## Bulb Wiring Safety
+The web threshold slider controls the analog reading from AO. The physical trimpot still affects the KY-037 module behavior, especially the DO indicator.
 
-The relay contact side is separate from ESP32 logic. Use the relay module's rated contact terminals for the bulb circuit.
+## Safety
 
-Minimum safety rules:
+The ESP32 must not touch mains voltage. Keep bulb wiring only on the relay contact side.
 
-1. Keep mains voltage away from the ESP32, KY-037, USB cable, and breadboard logic side.
-2. Disconnect power before changing bulb or relay wiring.
-3. Use insulated terminals, proper wire gauge, and an enclosure.
-4. Do not touch exposed relay contact wiring while powered.
-5. Test firmware and relay clicking without a mains bulb before connecting the final load.
+Use separate 5V/VIN and 3V3 rails:
 
-## Relay Contact Wiring
-
-Most relay modules expose `COM`, `NO`, and `NC`.
-
-- Use `COM` and `NO` when the bulb should be OFF by default and ON only when the relay activates.
-- Use `COM` and `NC` only if you intentionally want the bulb ON by default.
-
-## Common Ground
-
-The ESP32, KY-037, and relay input side must share ground:
-
-```text
-ESP32 GND = KY-037 GND = relay module GND
-```
+- Relay power: 5V/VIN rail.
+- Sensor power: 3V3 rail.
+- Ground: common GND rail.

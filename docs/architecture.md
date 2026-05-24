@@ -1,56 +1,39 @@
 # Architecture
 
-## Summary
+The firmware is a small ESP32 Arduino application. It connects to WiFi, serves a local dashboard, controls the relay output, reads KY-037 AO/DO, and exposes JSON endpoints for the browser UI.
 
-Firmware runs as a small monolithic ESP32 Arduino application. ESP32 connects to WiFi and Blynk, controls the bulb relay, reads KY-037 digital output, and publishes telemetry.
-
-## Logical Areas in `src/main.cpp`
+## Modules
 
 | Area | Responsibility |
 | --- | --- |
-| Blynk and WiFi config | Holds safe placeholder credentials and template identifiers |
-| Pin map | Defines relay and KY-037 DO pins |
-| Relay state | Stores lamp ON/OFF state and writes active HIGH relay output |
-| Blynk handlers | Receives switch, clap mode, and toggle commands |
-| Telemetry | Publishes sound trigger, uptime, and WiFi RSSI |
-| Clap detection | Reads KY-037 DO with arming and cooldown |
+| WiFi setup | Connect to the configured local WiFi network |
+| Web server | Serve HTML, CSS, JavaScript, and JSON endpoints |
+| Relay control | Apply manual and clap-triggered relay state on GPIO25 |
+| Sound detection | Read AO on GPIO34 and compare it with the web threshold |
+| Diagnostics | Report DO on GPIO35, analog value, peak value, WiFi RSSI, and uptime |
+| UI assets | Store the dashboard HTML/CSS/JS in `include/web_ui.h` |
 
 ## Runtime State
 
 | State | Type | Purpose |
 | --- | --- | --- |
-| `lampOn` | `bool` | Current relay/lamp state |
-| `clapModeEnabled` | `bool` | Whether clap detection may toggle the relay |
-| `soundPeakArmed` | `bool` | Prevents one sound peak from triggering repeatedly |
-| `lastClapAt` | `unsigned long` | Last accepted clap time |
+| `relayOn` | `bool` | Current relay output state |
+| `clapModeEnabled` | `bool` | Whether sound may toggle the relay |
+| `soundThreshold` | `uint16_t` | AO threshold, range `0..4095` |
+| `soundValue` | `uint16_t` | Latest AO reading |
+| `soundPeakValue` | `uint16_t` | Slowly decaying peak value for UI feedback |
+| `minSoundActiveMs` | `unsigned long` | Minimum active time before a trigger is accepted |
+| `clapCooldownMs` | `unsigned long` | Delay before another accepted trigger |
+| `clapCount` | `unsigned long` | Accepted trigger count |
 
-## Relay Output
+## Hardware Boundary
 
-The relay module input is active HIGH.
+The ESP32 controls only the relay input circuit. Bulb voltage must stay on the relay contact side and must not touch ESP32 pins, sensor wiring, breadboard signal rows, or USB-connected equipment.
 
-| Lamp State | GPIO2 |
-| --- | --- |
-| ON | `HIGH` |
-| OFF | `LOW` |
+Relay logic is currently active HIGH because GPIO25 drives a transistor path. If a different relay module is wired directly and behaves inverted, swap `RELAY_ON_LEVEL` and `RELAY_OFF_LEVEL` in `src/main.cpp`.
 
-If the physical relay module is active LOW, swap `RELAY_ON_LEVEL` and `RELAY_OFF_LEVEL` in `src/main.cpp`.
+## Web Strategy
 
-## Sensor Strategy
+The dashboard is local-network only. The browser fetches `/api/status` regularly and sends simple GET commands for relay, clap mode, and sensitivity changes.
 
-- KY-037 DO connects to GPIO22 / D22.
-- Firmware treats DO active LOW as sound detected.
-- Cooldown is `650 ms`.
-- `soundPeakArmed` prevents one continuous sound pulse from toggling repeatedly.
-
-## Blynk Strategy
-
-Blynk is the public control surface:
-
-- `V0`: lamp switch
-- `V1`: clap mode
-- `V2`: momentary toggle
-- `V3`: sound trigger telemetry
-- `V4`: uptime seconds
-- `V5`: WiFi RSSI
-
-Telemetry is sent by `BlynkTimer` every 1000 ms. The main loop keeps `Blynk.run()`, `timer.run()`, and clap detection short.
+This avoids cloud dependency while keeping the control surface fully website-driven.

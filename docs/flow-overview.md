@@ -7,8 +7,8 @@ flowchart TD
   A[Power on ESP32] --> B[Start Serial 115200]
   B --> C[Set relay and KY-037 pin modes]
   C --> D[Set relay OFF]
-  D --> E[Connect WiFi and Blynk]
-  E --> F[Register telemetry timer]
+  D --> E[Connect WiFi]
+  E --> F[Register web routes]
   F --> G[Enter loop]
 ```
 
@@ -16,39 +16,37 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  A[loop] --> B[Blynk.run]
-  B --> C[timer.run]
-  C --> D[Read KY-037 DO on GPIO22]
-  D --> E{DO active LOW?}
-  E -- No --> F[Rearm sound peak]
-  E -- Yes --> G{Clap mode enabled and cooldown passed?}
+  A[loop] --> B[Handle web client]
+  B --> C[Read KY-037 AO on GPIO34]
+  C --> D{AO above threshold?}
+  D -- No --> F[Rearm sound peak]
+  D -- Yes --> G{Clap mode enabled, hold met, cooldown passed?}
   G -- No --> A
-  G -- Yes --> H[Toggle relay GPIO2]
-  H --> I[Publish V0 lamp state]
+  G -- Yes --> H[Toggle relay GPIO25]
+  H --> I[Increment clap count]
   I --> J[Record last clap time and disarm peak]
   F --> A
   J --> A
 ```
 
-## Blynk Control Flow
+## Web Control Flow
 
 ```mermaid
 sequenceDiagram
   participant User
-  participant Blynk
   participant ESP32
   participant Relay
-  User->>Blynk: Set V0 or press V2
-  Blynk->>ESP32: Virtual pin update
-  ESP32->>Relay: Write GPIO2 HIGH or LOW
-  ESP32-->>Blynk: Publish lamp state
+  User->>ESP32: Open dashboard over local WiFi
+  User->>ESP32: GET /api/relay or /api/sensitivity
+  ESP32->>Relay: Write GPIO25 HIGH or LOW
+  ESP32-->>User: Return JSON status
 ```
 
 ## Clap Detection Rules
 
-1. Read KY-037 DO from GPIO22.
-2. Treat `LOW` as sound detected.
-3. Rearm only after DO returns inactive.
-4. Ignore triggers inside the `650 ms` cooldown window.
-5. Toggle relay GPIO2 after a valid clap.
-6. Publish the new relay state to Blynk.
+1. Read KY-037 AO from GPIO34.
+2. Treat values at or above the web threshold as active sound.
+3. Require the active signal to hold for `minActiveMs`.
+4. Rearm only after the analog value drops below threshold.
+5. Ignore triggers inside the configured cooldown window.
+6. Toggle relay GPIO25 after a valid clap.

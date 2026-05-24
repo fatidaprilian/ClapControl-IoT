@@ -1,6 +1,6 @@
 # Testing and Validation
 
-## Build Check
+## Compile Check
 
 Run:
 
@@ -8,7 +8,7 @@ Run:
 pio run
 ```
 
-Build is valid when PlatformIO reports success for `env:esp32dev`.
+The build must pass for the `esp32dev` environment.
 
 ## Upload Check
 
@@ -18,41 +18,28 @@ Run:
 pio run --target upload
 ```
 
-Upload requires the ESP32 to be connected and the serial port to be free.
+Confirm Serial Monitor prints the pin map and dashboard URL.
 
-## Blynk Connection Check
+## Web Check
 
-1. Open Serial Monitor at `115200`.
-2. Reset ESP32.
-3. Confirm the device connects to WiFi and Blynk.
-4. Confirm the device shows online in Blynk.
+1. Open the dashboard URL on the same WiFi network.
+2. Confirm relay state, analog value, peak value, DO state, WiFi RSSI, and uptime update.
+3. Press `ON`, `OFF`, and `TOGGLE`.
+4. Confirm the relay state in the UI matches the physical relay module.
 
-## Blynk Control Check
+## Sound Check
 
-- `V0 = 1` turns relay GPIO2 ON.
-- `V0 = 0` turns relay GPIO2 OFF.
-- Pressing `V2` toggles the relay once and resets `V2` to `0`.
-- `V1 = 1` enables clap mode.
-- `V1 = 0` disables clap mode.
-- `V3` reflects KY-037 DO trigger state.
-- `V4` increases over time.
-- `V5` reports WiFi RSSI.
+1. Watch the idle AO value.
+2. Clap near the KY-037 and watch the peak value.
+3. Move `Threshold analog` between idle and peak.
+4. Keep `Hold aktif` around `20 ms` first.
+5. Keep `Cooldown` around `650 ms` first.
+6. Confirm one clap creates one accepted event.
 
-## Relay and Bulb Safety Check
+## Safety Check
 
-Start without mains voltage connected to the bulb side.
-
-- On boot, relay GPIO2 should be OFF.
-- Blynk `V0 = 1` should activate the relay input.
-- Blynk `V0 = 0` should deactivate the relay input.
-- Relay clicking should match Blynk state.
-- Only connect the bulb load after low-voltage relay input behavior is correct.
-
-## Regression Checklist
-
-- `platformio.ini` targets ESP32 DevKit V1.
-- Firmware keeps relay pin GPIO2 / D2.
-- Firmware keeps KY-037 DO on GPIO22 / D22.
-- Real WiFi password and Blynk token are not committed.
-- Clap detection uses arming and cooldown.
-- Relay starts OFF on boot.
+- Bulb mains wiring stays only on the relay contact side.
+- ESP32, sensor, USB, and breadboard logic never touch bulb voltage.
+- Relay VCC matches the relay module requirement.
+- ESP32 does not reset when relay turns ON.
+- Real WiFi credentials are not committed.

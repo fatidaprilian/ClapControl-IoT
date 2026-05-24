@@ -1,81 +1,339 @@
-#define BLYNK_TEMPLATE_ID "GANTI_TEMPLATE_ID"
-#define BLYNK_TEMPLATE_NAME "ClapControl IoT"
-#define BLYNK_AUTH_TOKEN "GANTI_AUTH_TOKEN"
-#define BLYNK_PRINT Serial
-
 #include <Arduino.h>
+#include <WebServer.h>
 #include <WiFi.h>
-#include <BlynkSimpleEsp32.h>
 
+#include "web_ui.h"
+
+#if __has_include("secrets.h")
+#include "secrets.h"
+#else
 const char WIFI_SSID[] = "GANTI_NAMA_WIFI";
 const char WIFI_PASSWORD[] = "GANTI_PASSWORD_WIFI";
+#endif
 
-const uint8_t RELAY_PIN = 2;        // Relay IN -> ESP32 GPIO2 / D2.
-const uint8_t SOUND_DIGITAL_PIN = 22; // KY-037 DO -> ESP32 GPIO22 / D22.
+const uint8_t RELAY_PIN = 25;         // Relay drive -> ESP32 GPIO25 / D25.
+const uint8_t SOUND_DIGITAL_PIN = 35; // KY-037 DO -> ESP32 GPIO35 / D35.
+const uint8_t SOUND_ANALOG_PIN = 34;  // KY-037 AO -> ESP32 GPIO34 / D34.
 
 const unsigned long SERIAL_BAUD = 115200;
-const unsigned long CLAP_COOLDOWN_MS = 650;
-const unsigned long TELEMETRY_INTERVAL_MS = 1000;
+const unsigned long WIFI_CONNECT_TIMEOUT_MS = 20000;
 
 const uint8_t RELAY_ON_LEVEL = HIGH;
 const uint8_t RELAY_OFF_LEVEL = LOW;
 const uint8_t SOUND_ACTIVE_LEVEL = LOW;
 
-const uint8_t VPIN_LAMP_SWITCH = V0;
-const uint8_t VPIN_CLAP_MODE = V1;
-const uint8_t VPIN_TOGGLE_BUTTON = V2;
-const uint8_t VPIN_SOUND_TRIGGER = V3;
-const uint8_t VPIN_UPTIME_SECONDS = V4;
-const uint8_t VPIN_WIFI_RSSI = V5;
+const uint16_t SOUND_THRESHOLD_MIN = 50;
+const uint16_t SOUND_THRESHOLD_MAX = 4095;
+const uint16_t DEFAULT_SOUND_THRESHOLD = 1800;
+const uint8_t SOUND_SAMPLE_COUNT = 12;
+const unsigned long MIN_HOLD_MS_MIN = 5;
+const unsigned long MIN_HOLD_MS_MAX = 250;
+const unsigned long COOLDOWN_MS_MIN = 200;
+const unsigned long COOLDOWN_MS_MAX = 2000;
 
-BlynkTimer timer;
+WebServer server(80);
 
-bool lampOn = false;
+bool relayOn = false;
 bool clapModeEnabled = true;
 bool soundPeakArmed = true;
+bool previousSoundActive = false;
+unsigned long soundActiveSince = 0;
 unsigned long lastClapAt = 0;
+unsigned long clapCount = 0;
+uint16_t soundThreshold = DEFAULT_SOUND_THRESHOLD;
+uint16_t soundValue = 0;
+uint16_t soundPeakValue = 0;
+unsigned long minSoundActiveMs = 5;
+unsigned long clapCooldownMs = 650;
 
 void applyRelayOutput()
 {
-  digitalWrite(RELAY_PIN, lampOn ? RELAY_ON_LEVEL : RELAY_OFF_LEVEL);
+  digitalWrite(RELAY_PIN, relayOn ? RELAY_ON_LEVEL : RELAY_OFF_LEVEL);
 }
 
-void publishLampState()
+void setRelay(bool nextRelayState)
 {
-  Blynk.virtualWrite(VPIN_LAMP_SWITCH, lampOn ? 1 : 0);
-}
-
-void setLamp(bool nextLampState)
-{
-  lampOn = nextLampState;
+  relayOn = nextRelayState;
   applyRelayOutput();
-  publishLampState();
 
-  Serial.print(F("Bulb relay is now "));
-  Serial.println(lampOn ? F("ON") : F("OFF"));
+  Serial.print(F("Relay is now "));
+  Serial.println(relayOn ? F("ON") : F("OFF"));
 }
 
-void toggleLamp()
+void toggleRelay()
 {
-  setLamp(!lampOn);
+  setRelay(!relayOn);
 }
 
 bool isSoundActive()
 {
-  return digitalRead(SOUND_DIGITAL_PIN) == SOUND_ACTIVE_LEVEL;
+  return soundValue >= soundThreshold;
 }
 
-void publishTelemetry()
+uint16_t readSoundPeakSample()
 {
-  Blynk.virtualWrite(VPIN_SOUND_TRIGGER, isSoundActive() ? 1 : 0);
-  Blynk.virtualWrite(VPIN_UPTIME_SECONDS, millis() / 1000UL);
-  Blynk.virtualWrite(VPIN_WIFI_RSSI, WiFi.RSSI());
+  uint16_t highestSample = 0;
+
+  for (uint8_t index = 0; index < SOUND_SAMPLE_COUNT; index++)
+  {
+    uint16_t sample = static_cast<uint16_t>(analogRead(SOUND_ANALOG_PIN));
+    if (sample > highestSample)
+    {
+      highestSample = sample;
+    }
+    delayMicroseconds(180);
+  }
+
+  return highestSample;
 }
 
-void handleClapDetection()
+unsigned long clampUnsignedLong(unsigned long value, unsigned long minValue, unsigned long maxValue)
 {
+  if (value < minValue)
+  {
+    return minValue;
+  }
+
+  if (value > maxValue)
+  {
+    return maxValue;
+  }
+
+  return value;
+}
+
+bool parseUnsignedArg(const char *name, unsigned long &parsedValue)
+{
+  if (!server.hasArg(name))
+  {
+    return false;
+  }
+
+  String rawValue = server.arg(name);
+  rawValue.trim();
+
+  if (rawValue.length() == 0)
+  {
+    return false;
+  }
+
+  for (size_t index = 0; index < rawValue.length(); index++)
+  {
+    if (!isDigit(rawValue[index]))
+    {
+      return false;
+    }
+  }
+
+  parsedValue = static_cast<unsigned long>(rawValue.toInt());
+  return true;
+}
+
+String buildStatusJson()
+{
+  String json = "{";
+  json += "\"relayOn\":";
+  json += (relayOn ? "true" : "false");
+  json += ",\"analog\":";
+  json += soundValue;
+  json += ",\"peak\":";
+  json += soundPeakValue;
+  json += ",\"digitalActive\":";
+  json += ((digitalRead(SOUND_DIGITAL_PIN) == SOUND_ACTIVE_LEVEL) ? "true" : "false");
+  json += ",\"soundActive\":";
+  json += (isSoundActive() ? "true" : "false");
+  json += ",\"clapMode\":";
+  json += (clapModeEnabled ? "true" : "false");
+  json += ",\"threshold\":";
+  json += soundThreshold;
+  json += ",\"minActiveMs\":";
+  json += minSoundActiveMs;
+  json += ",\"cooldownMs\":";
+  json += clapCooldownMs;
+  json += ",\"clapCount\":";
+  json += clapCount;
+  json += ",\"wifiRssi\":";
+  json += WiFi.RSSI();
+  json += ",\"uptimeMs\":";
+  json += millis();
+  json += "}";
+  return json;
+}
+
+void sendStatus()
+{
+  server.send(200, "application/json", buildStatusJson());
+}
+
+void sendBadRequest(const char *message)
+{
+  String json = "{\"error\":\"";
+  json += message;
+  json += "\"}";
+  server.send(400, "application/json", json);
+}
+
+void handleRoot()
+{
+  server.send_P(200, "text/html", DASHBOARD_HTML);
+}
+
+void handleStyles()
+{
+  server.send_P(200, "text/css", DASHBOARD_CSS);
+}
+
+void handleScript()
+{
+  server.send_P(200, "application/javascript", DASHBOARD_JS);
+}
+
+void handleRelay()
+{
+  if (!server.hasArg("state"))
+  {
+    sendBadRequest("state is required");
+    return;
+  }
+
+  String state = server.arg("state");
+  state.toLowerCase();
+
+  if (state == "on")
+  {
+    setRelay(true);
+  }
+  else if (state == "off")
+  {
+    setRelay(false);
+  }
+  else if (state == "toggle")
+  {
+    toggleRelay();
+  }
+  else
+  {
+    sendBadRequest("state must be on, off, or toggle");
+    return;
+  }
+
+  sendStatus();
+}
+
+void handleClapMode()
+{
+  if (!server.hasArg("enabled"))
+  {
+    clapModeEnabled = !clapModeEnabled;
+  }
+  else
+  {
+    String enabledValue = server.arg("enabled");
+    enabledValue.toLowerCase();
+    clapModeEnabled = enabledValue == "1" || enabledValue == "true" || enabledValue == "on";
+  }
+
+  soundPeakArmed = true;
+  sendStatus();
+}
+
+void handleSensitivity()
+{
+  unsigned long nextThreshold = soundThreshold;
+  unsigned long nextHoldMs = minSoundActiveMs;
+  unsigned long nextCooldownMs = clapCooldownMs;
+
+  if (server.hasArg("threshold") && !parseUnsignedArg("threshold", nextThreshold))
+  {
+    sendBadRequest("threshold must be a number");
+    return;
+  }
+
+  if (server.hasArg("hold") && !parseUnsignedArg("hold", nextHoldMs))
+  {
+    sendBadRequest("hold must be a number");
+    return;
+  }
+
+  if (server.hasArg("cooldown") && !parseUnsignedArg("cooldown", nextCooldownMs))
+  {
+    sendBadRequest("cooldown must be a number");
+    return;
+  }
+
+  soundThreshold = static_cast<uint16_t>(clampUnsignedLong(nextThreshold, SOUND_THRESHOLD_MIN, SOUND_THRESHOLD_MAX));
+  minSoundActiveMs = clampUnsignedLong(nextHoldMs, MIN_HOLD_MS_MIN, MIN_HOLD_MS_MAX);
+  clapCooldownMs = clampUnsignedLong(nextCooldownMs, COOLDOWN_MS_MIN, COOLDOWN_MS_MAX);
+  sendStatus();
+}
+
+void handleNotFound()
+{
+  server.send(404, "application/json", "{\"error\":\"not found\"}");
+}
+
+void configureRoutes()
+{
+  server.on("/", HTTP_GET, handleRoot);
+  server.on("/styles.css", HTTP_GET, handleStyles);
+  server.on("/app.js", HTTP_GET, handleScript);
+  server.on("/api/status", HTTP_GET, sendStatus);
+  server.on("/api/relay", HTTP_GET, handleRelay);
+  server.on("/api/clap", HTTP_GET, handleClapMode);
+  server.on("/api/sensitivity", HTTP_GET, handleSensitivity);
+  server.onNotFound(handleNotFound);
+}
+
+void connectToWiFi()
+{
+  Serial.print(F("Connecting to WiFi: "));
+  Serial.println(WIFI_SSID);
+
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+
+  unsigned long startedAt = millis();
+
+  while (WiFi.status() != WL_CONNECTED && millis() - startedAt < WIFI_CONNECT_TIMEOUT_MS)
+  {
+    delay(500);
+    Serial.print(F("."));
+  }
+
+  Serial.println();
+
+  if (WiFi.status() == WL_CONNECTED)
+  {
+    Serial.print(F("Dashboard: http://"));
+    Serial.println(WiFi.localIP());
+  }
+  else
+  {
+    Serial.println(F("WiFi failed. Check SSID/password, then reset the ESP32."));
+  }
+}
+
+void handleSoundDetection()
+{
+  soundValue = readSoundPeakSample();
+  if (soundValue > soundPeakValue)
+  {
+    soundPeakValue = soundValue;
+  }
+  else if (soundPeakValue > 0)
+  {
+    soundPeakValue--;
+  }
+
   bool soundActive = isSoundActive();
   unsigned long now = millis();
+
+  if (soundActive && !previousSoundActive)
+  {
+    soundActiveSince = now;
+  }
+
+  previousSoundActive = soundActive;
 
   if (!soundActive)
   {
@@ -88,52 +346,21 @@ void handleClapDetection()
     return;
   }
 
-  if (now - lastClapAt < CLAP_COOLDOWN_MS)
+  if (now - soundActiveSince < minSoundActiveMs)
   {
     return;
   }
 
-  toggleLamp();
+  if (now - lastClapAt < clapCooldownMs)
+  {
+    return;
+  }
+
+  toggleRelay();
+  clapCount++;
   lastClapAt = now;
   soundPeakArmed = false;
-  Serial.println(F("Clap detected."));
-}
-
-void publishControlState()
-{
-  publishLampState();
-  Blynk.virtualWrite(VPIN_CLAP_MODE, clapModeEnabled ? 1 : 0);
-  publishTelemetry();
-}
-
-BLYNK_CONNECTED()
-{
-  Blynk.syncVirtual(VPIN_LAMP_SWITCH, VPIN_CLAP_MODE);
-  publishControlState();
-}
-
-BLYNK_WRITE(VPIN_LAMP_SWITCH)
-{
-  setLamp(param.asInt() == 1);
-}
-
-BLYNK_WRITE(VPIN_CLAP_MODE)
-{
-  clapModeEnabled = param.asInt() == 1;
-  soundPeakArmed = true;
-  Blynk.virtualWrite(VPIN_CLAP_MODE, clapModeEnabled ? 1 : 0);
-
-  Serial.print(F("Clap mode is now "));
-  Serial.println(clapModeEnabled ? F("ON") : F("OFF"));
-}
-
-BLYNK_WRITE(VPIN_TOGGLE_BUTTON)
-{
-  if (param.asInt() == 1)
-  {
-    toggleLamp();
-    Blynk.virtualWrite(VPIN_TOGGLE_BUTTON, 0);
-  }
+  Serial.println(F("Sound trigger accepted."));
 }
 
 void setup()
@@ -143,21 +370,24 @@ void setup()
 
   pinMode(RELAY_PIN, OUTPUT);
   pinMode(SOUND_DIGITAL_PIN, INPUT);
+  pinMode(SOUND_ANALOG_PIN, INPUT);
+  analogReadResolution(12);
 
-  setLamp(false);
+  setRelay(false);
 
-  Serial.println(F("ClapControl IoT - ESP32 DevKit V1 + Blynk"));
-  Serial.println(F("Relay IN: GPIO2 / D2"));
-  Serial.println(F("KY-037 DO: GPIO22 / D22"));
-  Serial.println(F("Connecting to WiFi and Blynk..."));
+  Serial.println(F("ClapControl ESP32 web mode"));
+  Serial.println(F("Relay drive: GPIO25 / D25"));
+  Serial.println(F("KY-037 DO: GPIO35 / D35"));
+  Serial.println(F("KY-037 AO: GPIO34 / D34"));
 
-  Blynk.begin(BLYNK_AUTH_TOKEN, WIFI_SSID, WIFI_PASSWORD);
-  timer.setInterval(TELEMETRY_INTERVAL_MS, publishTelemetry);
+  connectToWiFi();
+  configureRoutes();
+  server.begin();
+  Serial.println(F("Web server started."));
 }
 
 void loop()
 {
-  Blynk.run();
-  timer.run();
-  handleClapDetection();
+  server.handleClient();
+  handleSoundDetection();
 }

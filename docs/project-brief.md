@@ -6,16 +6,16 @@ ClapControl IoT
 
 ## Goal
 
-Build an ESP32 lamp controller that toggles a bulb through a relay module, listens to a KY-037 sound sensor, and exposes manual control plus telemetry through Blynk.
+Build an ESP32 lamp controller that toggles a bulb through a relay module, listens to a KY-037 sound sensor, and exposes manual control plus telemetry through a local WiFi web dashboard.
 
 ## Main Features
 
-- ESP32 connects to WiFi and Blynk.
-- Blynk switch turns the bulb relay ON or OFF.
-- Blynk momentary button toggles the relay.
-- Clap mode can be enabled or disabled from Blynk.
-- KY-037 DO can toggle the relay when clap mode is enabled.
-- Blynk displays sound trigger, uptime, and WiFi signal.
+- ESP32 connects to local WiFi and serves the dashboard on port `80`.
+- The dashboard turns the bulb relay ON, OFF, or toggles it.
+- Clap mode can be enabled or disabled from the dashboard.
+- KY-037 AO controls software sensitivity through the web threshold slider.
+- KY-037 DO is shown as a diagnostic signal.
+- The dashboard displays analog level, peak hold, uptime, and WiFi signal.
 - Relay starts OFF after boot.
 
 ## Components
@@ -29,8 +29,9 @@ Build an ESP32 lamp controller that toggles a bulb through a relay module, liste
 
 | Function | ESP32 Pin |
 | --- | --- |
-| Relay IN | GPIO2 / D2 |
-| KY-037 DO | GPIO22 / D22 |
+| Relay drive | GPIO25 / D25 |
+| KY-037 DO | GPIO35 / D35 |
+| KY-037 AO | GPIO34 / D34 |
 | 3.3V rail | ESP32 3V3 |
 | Ground rail | ESP32 GND |
 
@@ -39,9 +40,9 @@ Build an ESP32 lamp controller that toggles a bulb through a relay module, liste
 - Framework: Arduino.
 - Build system: PlatformIO.
 - Board target: ESP32 DevKit V1.
-- Cloud control: Blynk static token flow.
+- Control surface: local WiFi web dashboard.
 - Relay logic: active HIGH. `HIGH` turns the bulb relay ON, `LOW` turns it OFF.
-- Clap detection source: KY-037 DO active LOW.
+- Clap detection source: KY-037 AO analog threshold from GPIO34.
 
 ## Safety Notes
 
