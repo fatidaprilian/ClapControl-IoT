@@ -1,22 +1,16 @@
 #include <Arduino.h>
 #include <WebServer.h>
-#include <WiFi.h>
+#include <WiFiManager.h>
+#include <time.h>
+#include <ESPmDNS.h>
 
 #include "web_ui.h"
-
-#if __has_include("secrets.h")
-#include "secrets.h"
-#else
-const char WIFI_SSID[] = "GANTI_NAMA_WIFI";
-const char WIFI_PASSWORD[] = "GANTI_PASSWORD_WIFI";
-#endif
 
 const uint8_t RELAY_PIN = 25;         // Relay drive -> ESP32 GPIO25 / D25.
 const uint8_t SOUND_DIGITAL_PIN = 35; // KY-037 DO -> ESP32 GPIO35 / D35.
 const uint8_t SOUND_ANALOG_PIN = 34;  // KY-037 AO -> ESP32 GPIO34 / D34.
 
 const unsigned long SERIAL_BAUD = 115200;
-const unsigned long WIFI_CONNECT_TIMEOUT_MS = 20000;
 
 const uint8_t RELAY_ON_LEVEL = HIGH;
 const uint8_t RELAY_OFF_LEVEL = LOW;
@@ -45,6 +39,15 @@ uint16_t soundValue = 0;
 uint16_t soundPeakValue = 0;
 unsigned long minSoundActiveMs = 5;
 unsigned long clapCooldownMs = 650;
+
+// Schedule variables
+bool scheduleEnabled = false;
+unsigned long onHour = 18;
+unsigned long onMinute = 0;
+unsigned long offHour = 6;
+unsigned long offMinute = 0;
+int lastScheduleActionDay = -1;
+int lastScheduleActionMinute = -1;
 
 void applyRelayOutput()
 {
@@ -131,6 +134,14 @@ bool parseUnsignedArg(const char *name, unsigned long &parsedValue)
 
 String buildStatusJson()
 {
+  struct tm timeinfo;
+  bool timeValid = getLocalTime(&timeinfo, 10);
+  
+  char timeStr[16] = "--:--";
+  if (timeValid) {
+    sprintf(timeStr, "%02d:%02d", timeinfo.tm_hour, timeinfo.tm_min);
+  }
+
   String json = "{";
   json += "\"relayOn\":";
   json += (relayOn ? "true" : "false");
@@ -156,6 +167,21 @@ String buildStatusJson()
   json += WiFi.RSSI();
   json += ",\"uptimeMs\":";
   json += millis();
+  
+  // Schedule state
+  json += ",\"currentTime\":\"";
+  json += timeStr;
+  json += "\",\"scheduleEnabled\":";
+  json += (scheduleEnabled ? "true" : "false");
+  json += ",\"onHour\":";
+  json += onHour;
+  json += ",\"onMinute\":";
+  json += onMinute;
+  json += ",\"offHour\":";
+  json += offHour;
+  json += ",\"offMinute\":";
+  json += offMinute;
+  
   json += "}";
   return json;
 }
@@ -267,6 +293,46 @@ void handleSensitivity()
   sendStatus();
 }
 
+void handleSchedule()
+{
+  unsigned long nextOnHour = onHour;
+  unsigned long nextOnMinute = onMinute;
+  unsigned long nextOffHour = offHour;
+  unsigned long nextOffMinute = offMinute;
+
+  if (server.hasArg("enabled"))
+  {
+    String enabledValue = server.arg("enabled");
+    enabledValue.toLowerCase();
+    scheduleEnabled = enabledValue == "1" || enabledValue == "true" || enabledValue == "on";
+  }
+
+  if (server.hasArg("onHour")) parseUnsignedArg("onHour", nextOnHour);
+  if (server.hasArg("onMinute")) parseUnsignedArg("onMinute", nextOnMinute);
+  if (server.hasArg("offHour")) parseUnsignedArg("offHour", nextOffHour);
+  if (server.hasArg("offMinute")) parseUnsignedArg("offMinute", nextOffMinute);
+
+  onHour = clampUnsignedLong(nextOnHour, 0, 23);
+  onMinute = clampUnsignedLong(nextOnMinute, 0, 59);
+  offHour = clampUnsignedLong(nextOffHour, 0, 23);
+  offMinute = clampUnsignedLong(nextOffMinute, 0, 59);
+
+  // Reset the throttle so it can immediately run if the new time matches right away
+  lastScheduleActionDay = -1;
+  lastScheduleActionMinute = -1;
+
+  sendStatus();
+}
+
+void handleResetWifi()
+{
+  server.send(200, "application/json", "{\"status\":\"restarting\"}");
+  delay(1000);
+  WiFiManager wm;
+  wm.resetSettings();
+  ESP.restart();
+}
+
 void handleNotFound()
 {
   server.send(404, "application/json", "{\"error\":\"not found\"}");
@@ -281,35 +347,59 @@ void configureRoutes()
   server.on("/api/relay", HTTP_GET, handleRelay);
   server.on("/api/clap", HTTP_GET, handleClapMode);
   server.on("/api/sensitivity", HTTP_GET, handleSensitivity);
+  server.on("/api/schedule", HTTP_GET, handleSchedule);
+  server.on("/api/reset-wifi", HTTP_POST, handleResetWifi);
   server.onNotFound(handleNotFound);
 }
 
 void connectToWiFi()
 {
-  Serial.print(F("Connecting to WiFi: "));
-  Serial.println(WIFI_SSID);
+  Serial.println(F("Connecting to WiFi using WiFiManager..."));
 
-  WiFi.mode(WIFI_STA);
-  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  WiFiManager wm;
+  bool res = wm.autoConnect("ClapControl-Setup"); // Name of the Access Point
 
-  unsigned long startedAt = millis();
-
-  while (WiFi.status() != WL_CONNECTED && millis() - startedAt < WIFI_CONNECT_TIMEOUT_MS)
-  {
-    delay(500);
-    Serial.print(F("."));
+  if (!res) {
+    Serial.println(F("Failed to connect to WiFi and timeout occurred. Restarting..."));
+    delay(3000);
+    ESP.restart();
   }
 
   Serial.println();
+  Serial.println(F("WiFi connected successfully."));
+  Serial.print(F("Dashboard: http://"));
+  Serial.println(WiFi.localIP());
+}
 
-  if (WiFi.status() == WL_CONNECTED)
-  {
-    Serial.print(F("Dashboard: http://"));
-    Serial.println(WiFi.localIP());
+void checkSchedule() 
+{
+  if (!scheduleEnabled) return;
+
+  struct tm timeinfo;
+  if (!getLocalTime(&timeinfo, 10)) {
+    return; // Failed to obtain time
   }
-  else
-  {
-    Serial.println(F("WiFi failed. Check SSID/password, then reset the ESP32."));
+
+  int currentHour = timeinfo.tm_hour;
+  int currentMinute = timeinfo.tm_min;
+  int currentDay = timeinfo.tm_yday;
+
+  // Prevent toggling multiple times in the same minute
+  if (currentDay == lastScheduleActionDay && currentMinute == lastScheduleActionMinute) {
+    return;
+  }
+
+  bool shouldBeOn = (currentHour == onHour && currentMinute == onMinute);
+  bool shouldBeOff = (currentHour == offHour && currentMinute == offMinute);
+
+  if (shouldBeOn && !relayOn) {
+    setRelay(true);
+    lastScheduleActionDay = currentDay;
+    lastScheduleActionMinute = currentMinute;
+  } else if (shouldBeOff && relayOn) {
+    setRelay(false);
+    lastScheduleActionDay = currentDay;
+    lastScheduleActionMinute = currentMinute;
   }
 }
 
@@ -381,6 +471,15 @@ void setup()
   Serial.println(F("KY-037 AO: GPIO34 / D34"));
 
   connectToWiFi();
+  
+  if (MDNS.begin("clapcontrol")) {
+    Serial.println(F("MDNS responder started at http://clapcontrol.local"));
+  }
+
+  // Set time zone to UTC+7 for NTP
+  configTime(7 * 3600, 0, "pool.ntp.org", "time.nist.gov");
+  Serial.println(F("NTP Time configured for UTC+7"));
+
   configureRoutes();
   server.begin();
   Serial.println(F("Web server started."));
@@ -390,4 +489,10 @@ void loop()
 {
   server.handleClient();
   handleSoundDetection();
+  
+  static unsigned long lastScheduleCheck = 0;
+  if (millis() - lastScheduleCheck > 1000) {
+    checkSchedule();
+    lastScheduleCheck = millis();
+  }
 }
