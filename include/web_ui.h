@@ -144,10 +144,15 @@ const char DASHBOARD_HTML[] PROGMEM = R"HTML(
             <strong id="uptime" class="mono">0s</strong>
           </div>
         </div>
+        <div style="text-align: center; margin-bottom: 16px;">
+          <span class="label">Mobile Access (Scan via Android)</span>
+          <div id="qrcode" style="display:inline-block; margin-top:8px; padding:8px; background:white; border-radius:4px;"></div>
+        </div>
         <button id="resetWifiBtn" class="btn-danger w-full">Reset WiFi Credentials & Restart</button>
       </section>
     </div>
   </main>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <script src="/app.js"></script>
 </body>
 </html>
@@ -524,8 +529,10 @@ const currentTime = document.getElementById("currentTime");
 const scheduleMode = document.getElementById("scheduleMode");
 const timeOn = document.getElementById("timeOn");
 const timeOff = document.getElementById("timeOff");
+const qrcodeContainer = document.getElementById("qrcode");
 
 let pendingTimer = null;
+let qrCodeInstance = null;
 
 async function requestJson(url, options = { cache: "no-store" }) {
   const response = await fetch(url, options);
@@ -549,6 +556,24 @@ function render(data) {
   uptime.textContent = Math.floor(data.uptimeMs / 1000) + "s";
   wifiRssi.textContent = data.wifiRssi + " dBm";
   currentTime.textContent = data.currentTime || "--:--";
+
+  if (data.localIp && typeof QRCode !== 'undefined' && !qrCodeInstance) {
+    const rawIpUrl = "http://" + data.localIp;
+    qrCodeInstance = new QRCode(qrcodeContainer, {
+      text: rawIpUrl,
+      width: 128,
+      height: 128,
+      colorDark : "#000000",
+      colorLight : "#ffffff",
+      correctLevel : QRCode.CorrectLevel.L
+    });
+    const ipText = document.createElement("div");
+    ipText.className = "mono";
+    ipText.style.color = "#000";
+    ipText.style.marginTop = "4px";
+    ipText.textContent = rawIpUrl;
+    qrcodeContainer.appendChild(ipText);
+  }
 
   clapMode.checked = data.clapMode;
 

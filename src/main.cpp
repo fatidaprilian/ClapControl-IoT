@@ -168,6 +168,10 @@ String buildStatusJson()
   json += ",\"uptimeMs\":";
   json += millis();
   
+  json += ",\"localIp\":\"";
+  json += WiFi.localIP().toString();
+  json += "\"";
+  
   // Schedule state
   json += ",\"currentTime\":\"";
   json += timeStr;
@@ -487,6 +491,7 @@ void setup()
 
 void loop()
 {
+  MDNS.update();
   server.handleClient();
   handleSoundDetection();
   
